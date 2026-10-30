@@ -1,0 +1,13 @@
+# AutoEvolve backend (Milestone 05). Versions are the ones the test suite was run against.
+# Install into the backend-local virtual environment only:  python -m pip install -r requirements.txt
+
+# Runtime
+fastapi==0.162.0
+uvicorn==0.54.0
+SQLAlchemy==2.1.6
+pydantic-settings==2.16.2
+
+# Testing
+pytest==9.2.0
+# Required by starlette.testclient (httpx is deprecated for it as of Starlette 1.10)
+httpx2==2.16.0

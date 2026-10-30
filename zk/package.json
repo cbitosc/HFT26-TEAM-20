@@ -1,0 +1,14 @@
+{
+  "name": "autoevolve-zk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AutoEvolve Protocol ImprovementProof circuit (development prototype)",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "test": "node tests/run_tests.js"
+  },
+  "dependencies": {
+    "circomlib": "2.0.5",
+    "snarkjs": "0.7.6"
+  }
+}

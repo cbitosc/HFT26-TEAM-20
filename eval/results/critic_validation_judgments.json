@@ -1,0 +1,105 @@
+{
+  "about": "Manual judgments of the 6 Critic responses and 6 revisions in critic_validation_run_20261030_235825.json, made by reading each response against the rubric pre-registered in eval/critic_validation.py and against the genuine evaluator output in critic_validation_evidence.json.",
+  "limitations": [
+    "Single rater (the implementing agent); no independent second rating.",
+    "Rubric was fixed before any request, but applying it still involves judgment, and judgments were made after seeing the responses.",
+    "One sample per configuration; 3 candidates; one task."
+  ],
+  "defect_verdicts": "TP = identified with correct cause and correct location/missing behavior; PARTIAL = correct symptom or only part of the defect; FN = not identified (misdiagnosis counts as FN).",
+  "critic_responses": {
+    "A_flawed|7b": {
+      "defects": {"D1": "FN", "D2": "TP", "D3": "TP", "D4": "PARTIAL", "D5": "PARTIAL"},
+      "fix": {
+        "D1": "none: suggested change repeats the offending line `intervals.sort()`",
+        "D2": "adequate: `if not intervals: return []`",
+        "D3": "adequate: `if start <= last_end`",
+        "D4": "inadequate: blames the `start < last_end` condition; the defect is the assignment `(last_start, end)` that should use max(last_end, end)",
+        "D5": "inadequate: only suggests adding tests and type hints, not validation code"
+      },
+      "false_positives": [
+        "Claims the code does not sort (location 'line 2: intervals.sort()', the very line that sorts) and attributes touching/contained/chain/empty failures to missing sorting. The evaluator output for input_not_mutated shows the list WAS sorted."
+      ],
+      "valid_other": ["Suggests adding type hints and a docstring: true (code lacks both), not covered by the evaluator."],
+      "contradicts_evaluator_evidence": true,
+      "confidence": 0.95,
+      "confidence_justified": false,
+      "notes": "Missed D1 although input_not_mutated was in the evidence. Did not cite typeerror_not_list, typeerror_bad_element, validation_applies_to_all. Labelled typeerror_non_int_values 'possible' although the evaluator demonstrates it. Line numbers cited for the `if` (line 4) are wrong (actual line 6); quoted code is right."
+    },
+    "A_flawed|32b": {
+      "defects": {"D1": "TP", "D2": "TP", "D3": "TP", "D4": "FN", "D5": "TP"},
+      "fix": {
+        "D1": "adequate: `intervals = sorted(list(intervals))`",
+        "D2": "missing: no suggested change addresses the empty-list crash",
+        "D3": "adequate: `if start <= last_end`",
+        "D4": "none",
+        "D5": "generic: 'add type and value checks at the beginning'; plausible but not a specific correction"
+      },
+      "false_positives": [],
+      "valid_other": [],
+      "contradicts_evaluator_evidence": false,
+      "confidence": 1.0,
+      "confidence_justified": false,
+      "notes": "Missed D4 although `contained` was listed in its own evidence array; no issue cites it. Failing-test mapping otherwise exact (touching+chain, empty, input_not_mutated, validation tests). Same wrong line number for the `if` (4 instead of 6)."
+    },
+    "B_gen_7b|7b": {
+      "defects": {"B1": "TP"},
+      "fix": {"B1": "adequate: `sorted(intervals, key=lambda x: x[0])`"},
+      "false_positives": [],
+      "valid_other": [],
+      "contradicts_evaluator_evidence": false,
+      "confidence": 1.0,
+      "confidence_justified": true,
+      "notes": "Exact location quoted. Evidence line accurate."
+    },
+    "B_gen_7b|32b": {
+      "defects": {"B1": "TP"},
+      "fix": {"B1": "adequate: `sorted(intervals, key=lambda x: x[0])`"},
+      "false_positives": [],
+      "valid_other": [],
+      "contradicts_evaluator_evidence": false,
+      "confidence": 1.0,
+      "confidence_justified": true,
+      "notes": "Same quality as the 7B response."
+    },
+    "C_gen_coder|7b": {
+      "defects": {"C1": "TP", "C2": "FN"},
+      "fix": {
+        "C1": "resolves unsorted_input but would regress input_not_mutated: suggests in-place `intervals.sort(...)`",
+        "C2": "harmful: change TypeError to ValueError. Violates the requirement (TypeError) and would not fix typeerror_non_int_values"
+      },
+      "false_positives": [
+        "Claims non-integer values currently raise TypeError instead of ValueError. The requirement demands TypeError and the evaluator output says the call 'returned ... without raising'. Counted as a miss (C2 misdiagnosed) and as a false claim."
+      ],
+      "valid_other": [],
+      "contradicts_evaluator_evidence": true,
+      "confidence": 0.95,
+      "confidence_justified": false,
+      "notes": "Right region of code for C2 but wrong cause and a fix that breaks passing behavior. The root_cause field repeats the false claim."
+    },
+    "C_gen_coder|32b": {
+      "defects": {"C1": "TP", "C2": "TP"},
+      "fix": {
+        "C1": "resolves unsorted_input but would regress input_not_mutated: suggests in-place `intervals.sort(...)`",
+        "C2": "adequate: explicit isinstance checks on interval[0] and interval[1] raising TypeError"
+      },
+      "false_positives": [],
+      "valid_other": [],
+      "contradicts_evaluator_evidence": false,
+      "confidence": 1.0,
+      "confidence_justified": true,
+      "notes": "Justified under the pre-registered rubric (no FN/FP), with a caveat: its C1 fix would break a currently passing test, which the rubric does not count."
+    }
+  },
+  "revisions": {
+    "B_gen_7b": {
+      "control": {"result": "13/14 -> 13/14", "diff": "none; Generator returned the original code unchanged", "attribution": "neither (evaluator evidence alone did not produce the fix)"},
+      "critic_7b": {"result": "13/14 -> 14/14", "diff": "sort() replaced by sorted() copy; loop iterates the copy", "attribution": "Critic feedback"},
+      "critic_32b": {"result": "13/14 -> 14/14", "diff": "sort() replaced by sorted() copy; loop iterates the copy", "attribution": "Critic feedback"}
+    },
+    "C_gen_coder": {
+      "control": {"result": "12/14 -> 12/14", "diff": "added in-place intervals.sort (fixes unsorted_input, regresses input_not_mutated); no integer check added; rewrote tests", "attribution": "evaluator evidence alone gave a partial fix with a regression; net zero"},
+      "critic_7b": {"result": "12/14 -> 11/14", "diff": "added in-place sort (regression) and changed the TypeError to ValueError, following the Critic's incorrect advice (regresses typeerror_bad_element)", "attribution": "Critic feedback made the outcome worse than the control"},
+      "critic_32b": {"result": "12/14 -> 13/14", "diff": "added isinstance integer check (fixes typeerror_non_int_values); did not apply the sort suggestion; no regressions", "attribution": "Critic feedback (C2 fix). C1 left unfixed"}
+    }
+  }
+}
