@@ -113,3 +113,10 @@ class BaselineRequiredError(ConflictError):
     """A revision cannot be judged before the baseline (V1) has been accepted."""
 
     code = "BASELINE_REQUIRED"
+
+
+class LessonRejectedError(AppError):
+    """A would-be transferable lesson contained hidden test data and was refused (not stored)."""
+
+    status_code = 422
+    code = "LESSON_REJECTED"

@@ -355,3 +355,56 @@ export interface CreateTaskRequest {
   suite?: SuiteUpload | null;
   starter_code?: string | null;
 }
+
+// ---- Agent B: cross-agent memory + transfer experiment ----------------
+
+export interface Memory {
+  id: string;
+  source_agent_id: string;
+  destination_agent_id: string | null;
+  source_execution_id: string;
+  content: string;
+  task_category: string | null;
+  created_at: string;
+}
+
+export interface TransferExecMetrics {
+  status: string;
+  terminal: boolean;
+  num_versions: number;
+  v1_hidden_accuracy: number | null;
+  best_hidden_accuracy: number | null;
+  accepted_improvement: boolean;
+}
+
+export interface TransferMetrics {
+  control: TransferExecMetrics;
+  treatment: TransferExecMetrics;
+  delta_best_hidden_accuracy: number | null;
+  memory_used: number;
+}
+
+export interface Attestation {
+  id: string;
+  experiment_id: string;
+  payload_sha256: string;
+  recomputed_sha256: string;
+  hash_valid: boolean;
+  onchain: string;
+  created_at: string;
+}
+
+export interface TransferExperiment {
+  id: string;
+  source_agent_id: string;
+  destination_agent_id: string;
+  task_category: string | null;
+  base_task_id: string;
+  control_execution_id: string;
+  treatment_execution_id: string;
+  used_memory_ids: string[];
+  suite_hash: string | null;
+  metrics: TransferMetrics | null;
+  created_at: string;
+  attestation: Attestation | null;
+}

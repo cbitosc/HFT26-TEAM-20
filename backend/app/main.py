@@ -9,7 +9,7 @@ from app import __version__
 from app.api.error_handlers import register_exception_handlers
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import dashboard, evidence, executions, health, runs, tasks, versions
+from app.api.routes import agent_b, dashboard, evidence, executions, health, runs, tasks, versions
 from app.llm.client import make_featherless_client
 from app.config import Settings, get_settings
 from app.database import create_db_engine, init_db, make_session_factory
@@ -65,7 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
     register_exception_handlers(app)
     for router in (health.router, tasks.router, executions.router, runs.router, versions.router,
-                   evidence.router, dashboard.router):
+                   evidence.router, dashboard.router, agent_b.router):
         app.include_router(router, prefix="/api")
     return app
 

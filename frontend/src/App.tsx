@@ -8,11 +8,13 @@ import { RunView } from "./screens/RunView";
 import { CompareView } from "./screens/CompareView";
 import { Verification } from "./screens/Verification";
 import { PublishingPlaceholder } from "./screens/Placeholder";
+import { AgentB } from "./screens/AgentB";
 
 const TITLES: { test: (p: string) => boolean; title: string }[] = [
   { test: (p) => p === "/", title: "Home" },
   { test: (p) => p === "/new", title: "New Task" },
-  { test: (p) => p === "/publishing", title: "Publishing & Agent B" },
+  { test: (p) => p === "/publishing", title: "Publishing" },
+  { test: (p) => p === "/agent-b", title: "Agent B" },
   { test: (p) => /\/compare\//.test(p), title: "Compare" },
   { test: (p) => /\/verification$/.test(p), title: "Verification" },
   { test: (p) => /^\/executions\//.test(p), title: "Run" },
@@ -51,6 +53,7 @@ export function App() {
               element={<Verification />}
             />
             <Route path="/publishing" element={<PublishingPlaceholder />} />
+          <Route path="/agent-b" element={<AgentB />} />
             <Route
               path="*"
               element={<div className="panel">Page not found.</div>}

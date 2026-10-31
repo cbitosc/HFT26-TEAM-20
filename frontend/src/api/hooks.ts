@@ -19,6 +19,9 @@ import {
   getVersion,
   getVersionDiff,
   getVersionEvaluations,
+  getMemory,
+  createTransferExperiment,
+  getTransferExperiment,
   runExecution,
 } from "./client";
 import {
@@ -29,14 +32,49 @@ import {
   type Evidence,
   type ExecutionDetail,
   type ExecutionTree,
+  type Memory,
   type Page,
   type SystemStatus,
   type TaskRead,
+  type TransferExperiment,
   type VersionDiff,
   type VersionRead,
 } from "./types";
 
 const POLL_MS = 3000;
+
+export function useMemory(category?: string): UseQueryResult<Memory[]> {
+  return useQuery({
+    queryKey: ["memory", category ?? null],
+    queryFn: ({ signal }) => getMemory({ category, limit: 50 }, signal),
+  });
+}
+
+export function useTransferExperiment(
+  id: string | undefined,
+): UseQueryResult<TransferExperiment> {
+  return useQuery({
+    queryKey: ["transfer-experiment", id],
+    queryFn: ({ signal }) => getTransferExperiment(id as string, signal),
+    enabled: Boolean(id),
+    refetchInterval: (query) => {
+      const m = query.state.data?.metrics;
+      if (!m) return POLL_MS;
+      return m.control.terminal && m.treatment.terminal ? false : POLL_MS;
+    },
+  });
+}
+
+export function useCreateTransferExperiment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { base_task_id: string; start?: boolean }) =>
+      createTransferExperiment(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["memory"] });
+    },
+  });
+}
 
 export function useStatus(): UseQueryResult<SystemStatus> {
   return useQuery({

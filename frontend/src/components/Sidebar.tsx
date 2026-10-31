@@ -88,7 +88,7 @@ export function Sidebar() {
 
   const other: NavEntry[] = [
     { label: "Publishing", to: "/publishing", icon: Rocket },
-    { label: "Agent B", to: null, icon: Bot, soon: true },
+    { label: "Agent B", to: "/agent-b", icon: Bot },
   ];
 
   return (

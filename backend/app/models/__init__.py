@@ -6,12 +6,14 @@ from app.models.evidence import EvidenceBundle, EvidenceRecord, InvalidCompariso
 from app.models.execution import Execution, ExecutionTransition
 from app.models.llm_call import LLMCall
 from app.models.task import Task, TaskStatus
+from app.models.transfer import Attestation, TransferExperiment
 from app.models.uploaded_suite import UploadedSuite
 from app.models.version import AcceptanceStatus, Version
 
 __all__ = [
     "AcceptanceStatus",
     "AgentMemory",
+    "Attestation",
     "CriticFeedback",
     "Evaluation",
     "EvaluationOperationalMetrics",
@@ -23,6 +25,7 @@ __all__ = [
     "ExecutionTransition",
     "Task",
     "TaskStatus",
+    "TransferExperiment",
     "UploadedSuite",
     "Version",
 ]

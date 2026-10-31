@@ -11,9 +11,11 @@ import type {
   ExecutionDetail,
   ExecutionRead,
   ExecutionTree,
+  Memory,
   Page,
   SystemStatus,
   TaskRead,
+  TransferExperiment,
   VersionDiff,
   VersionRead,
 } from "./types";
@@ -204,6 +206,39 @@ export function createExecution(taskId: string): Promise<ExecutionRead> {
   return request<ExecutionRead>(
     `/tasks/${encodeURIComponent(taskId)}/executions`,
     { method: "POST", body: {} },
+  );
+}
+
+// ---- Agent B -----------------------------------------------------------
+
+export function getMemory(
+  params: { category?: string; limit?: number } = {},
+  signal?: AbortSignal,
+): Promise<Memory[]> {
+  const q = new URLSearchParams();
+  if (params.category) q.set("category", params.category);
+  if (params.limit !== undefined) q.set("limit", String(params.limit));
+  const qs = q.toString();
+  return request<Memory[]>(`/memory${qs ? `?${qs}` : ""}`, { signal });
+}
+
+export function createTransferExperiment(body: {
+  base_task_id: string;
+  start?: boolean;
+}): Promise<TransferExperiment> {
+  return request<TransferExperiment>("/agent-b/transfer-experiment", {
+    method: "POST",
+    body,
+  });
+}
+
+export function getTransferExperiment(
+  id: string,
+  signal?: AbortSignal,
+): Promise<TransferExperiment> {
+  return request<TransferExperiment>(
+    `/agent-b/experiments/${encodeURIComponent(id)}`,
+    { signal },
   );
 }
 

@@ -90,50 +90,122 @@ function ProgressRow({ label, counts }: { label: string; counts: Counts | null }
   );
 }
 
-// ---- A: inline SVG score chart (aggregate score per version) ----
-function ScoreChart({ versions }: { versions: VersionNode[] }) {
-  const pts = versions.filter((v) => v.overall_score !== null);
-  if (pts.length === 0) return null;
-  const W = 320;
-  const H = 150;
-  const padX = 26;
-  const padY = 20;
-  const n = pts.length;
-  const x = (i: number) => (n === 1 ? W / 2 : padX + (i * (W - 2 * padX)) / (n - 1));
-  const y = (s: number) => H - padY - (s / 100) * (H - 2 * padY);
-  const polyline = pts.map((v, i) => `${x(i)},${y(v.overall_score as number)}`).join(" ");
-  const aria =
-    "Aggregate score per version: " +
-    pts.map((v) => `${v.label} ${(v.overall_score as number).toFixed(0)}`).join(", ");
+// ---- A: inline SVG analysis chart: aggregate score + hidden accuracy per version ----
+type ChartPoint = { i: number; y: number; v: VersionNode };
 
-  function kind(v: VersionNode): "accepted" | "rejected" | "baseline" {
-    if (v.acceptance_status === "rejected") return "rejected";
-    if (v.acceptance_status === "accepted" && v.parent_version_id !== null) return "accepted";
-    return "baseline";
-  }
+function versionKind(v: VersionNode): "accepted" | "rejected" | "baseline" {
+  if (v.acceptance_status === "rejected") return "rejected";
+  if (v.acceptance_status === "accepted" && v.parent_version_id !== null) return "accepted";
+  return "baseline";
+}
+
+function ScoreChart({ versions }: { versions: VersionNode[] }) {
+  const scorePts: ChartPoint[] = versions
+    .map((v, i) => (v.overall_score !== null ? { i, y: v.overall_score, v } : null))
+    .filter((p): p is ChartPoint => p !== null);
+  if (scorePts.length === 0) return null;
+
+  const hiddenPts = versions
+    .map((v, i) => {
+      const r = rate(v.hidden);
+      return r !== null ? { i, y: r } : null;
+    })
+    .filter((p): p is { i: number; y: number } => p !== null);
+
+  const W = 360;
+  const H = 190;
+  const padL = 30;
+  const padR = 14;
+  const padT = 16;
+  const padB = 30;
+  const n = versions.length;
+  const xFor = (i: number) =>
+    n === 1 ? padL + (W - padL - padR) / 2 : padL + (i * (W - padL - padR)) / (n - 1);
+  const yFor = (val: number) => padT + (1 - val / 100) * (H - padT - padB);
+
+  const scoreLine = scorePts.map((p) => `${xFor(p.i)},${yFor(p.y)}`).join(" ");
+  const hiddenLine = hiddenPts.map((p) => `${xFor(p.i)},${yFor(p.y)}`).join(" ");
+  const grid = [0, 25, 50, 75, 100];
+
+  const aria =
+    "Scores per version. " +
+    versions
+      .map((v) => {
+        const r = rate(v.hidden);
+        const agg = v.overall_score !== null ? Math.round(v.overall_score) : "n/a";
+        return `${v.label}: aggregate ${agg}, hidden ${r !== null ? Math.round(r) + " percent" : "n/a"}`;
+      })
+      .join("; ");
 
   return (
-    <svg role="img" aria-label={aria} viewBox={`0 0 ${W} ${H}`} className="hero-chart">
-      <line x1={padX} y1={H - padY} x2={W - padX} y2={H - padY} stroke="var(--border)" strokeWidth="1" />
-      <polyline points={polyline} fill="none" stroke="var(--border-strong)" strokeWidth="2" />
-      {pts.map((v, i) => {
-        const k = kind(v);
-        const solid = k === "accepted";
-        const color =
-          k === "accepted" ? "#4c8dff" : k === "rejected" ? "var(--bad)" : "var(--neutral)";
-        return (
-          <circle
-            key={v.id}
-            cx={x(i)}
-            cy={y(v.overall_score as number)}
-            r="5"
-            fill={solid ? "#4c8dff" : "var(--panel)"}
-            stroke={color}
-            strokeWidth="2"
-          />
-        );
-      })}
-    </svg>
+    <figure className="chart-wrap" role="img" aria-label={aria}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="hero-chart" preserveAspectRatio="xMidYMid meet">
+        {grid.map((g) => (
+          <g key={g}>
+            <line
+              x1={padL}
+              x2={W - padR}
+              y1={yFor(g)}
+              y2={yFor(g)}
+              stroke="var(--border)"
+              strokeWidth="1"
+              strokeDasharray={g === 0 ? "0" : "3 3"}
+            />
+            {(g === 0 || g === 50 || g === 100) && (
+              <text x={padL - 6} y={yFor(g) + 3} textAnchor="end" fontSize="9" fill="var(--muted)">
+                {g}
+              </text>
+            )}
+          </g>
+        ))}
+
+        {/* hidden accuracy (green, dashed) */}
+        {hiddenPts.length > 1 && (
+          <polyline points={hiddenLine} fill="none" stroke="var(--ok)" strokeWidth="2" strokeDasharray="4 3" opacity="0.85" />
+        )}
+        {hiddenPts.map((p) => (
+          <circle key={`h${p.i}`} cx={xFor(p.i)} cy={yFor(p.y)} r="3" fill="var(--ok)" />
+        ))}
+
+        {/* aggregate score (blue) with decision-styled points and value labels */}
+        {scorePts.length > 1 && (
+          <polyline points={scoreLine} fill="none" stroke="#4c8dff" strokeWidth="2" />
+        )}
+        {scorePts.map((p) => {
+          const k = versionKind(p.v);
+          const color = k === "accepted" ? "#4c8dff" : k === "rejected" ? "var(--bad)" : "var(--neutral)";
+          return (
+            <g key={`s${p.i}`}>
+              <circle
+                cx={xFor(p.i)}
+                cy={yFor(p.y)}
+                r="5"
+                fill={k === "accepted" ? "#4c8dff" : "var(--panel)"}
+                stroke={color}
+                strokeWidth="2"
+              />
+              <text x={xFor(p.i)} y={yFor(p.y) - 9} textAnchor="middle" fontSize="9" fill="var(--text-dim)">
+                {Math.round(p.y)}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* x ticks: version sequence numbers (not labels, to avoid clashing with the timeline) */}
+        {versions.map((v, i) => (
+          <text key={`x${v.id}`} x={xFor(i)} y={H - padB + 15} textAnchor="middle" fontSize="9" fill="var(--muted)">
+            {v.sequence}
+          </text>
+        ))}
+      </svg>
+      <figcaption className="chart-legend">
+        <span className="sw"><span className="ln blue" /> Aggregate score</span>
+        <span className="sw"><span className="ln green" /> Hidden accuracy</span>
+        <span className="sw"><span className="dot acc" /> accepted</span>
+        <span className="sw"><span className="dot rej" /> rejected</span>
+        <span className="sw"><span className="dot base" /> baseline</span>
+      </figcaption>
+    </figure>
   );
 }
 
