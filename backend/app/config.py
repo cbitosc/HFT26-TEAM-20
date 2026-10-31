@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     # bytes. In production a missing key means uploads are refused; dev/test generate the key file below.
     hidden_suite_key: SecretStr | None = None
     hidden_suite_key_file: str = Field(default_factory=lambda: str(BACKEND_DIR / ".hidden_suite_key"))
+    # Evaluator working directories older than this are swept at app start (and test session start).
+    # They only ever exist if a process was hard-killed before its own cleanup ran.
+    evaluator_temp_max_age_seconds: int = Field(default=3600, ge=0, le=604_800)
     # Browser origins allowed to call the API (comma-separated). No wildcard; credentials stay off.
     cors_allowed_origins: str = "http://localhost:5173"
 

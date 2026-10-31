@@ -15,3 +15,5 @@ cryptography==46.0.3
 
 # Testing
 pytest==9.2.0
+# Per-test timeout so a hung test fails with a stack dump instead of stalling the whole run.
+pytest-timeout==2.4.0

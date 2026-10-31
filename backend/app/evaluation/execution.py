@@ -23,6 +23,7 @@ from app.evaluation.suite import EvaluationSuite
 
 RUNNER_SOURCE = Path(__file__).with_name("_runner.py")
 SMOKE_ID = "__contract_smoke__"
+EVAL_DIR_PREFIX = "autoevolve_eval_"  # every evaluator working directory starts with this
 MAX_SOURCE_BYTES = 200_000
 MAX_RESULT_BYTES = 2_000_000
 MAX_DIAGNOSTIC_BYTES = 4_000
@@ -108,6 +109,15 @@ def _read_records(path: Path) -> list[dict]:
     return records
 
 
+_LIVE_CHILDREN: set[int] = set()  # pids of evaluator child processes currently running (observability only)
+
+
+def live_eval_children() -> set[int]:
+    """Pids of evaluator children still running. Always empty between runs: every child is waited on
+    (or killed then waited on) before `run_candidate` returns. Tests assert this after each test."""
+    return set(_LIVE_CHILDREN)
+
+
 def _spawn(workdir: Path, timeout: float) -> tuple[bool, int | None]:
     with open(workdir / "child_stdout.txt", "wb") as out, open(workdir / "child_stderr.txt", "wb") as err:
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -116,13 +126,17 @@ def _spawn(workdir: Path, timeout: float) -> tuple[bool, int | None]:
             cwd=workdir, env=_child_environment(str(workdir)), stdin=subprocess.DEVNULL,
             stdout=out, stderr=err, creationflags=flags,
         )
+        _LIVE_CHILDREN.add(process.pid)  # recorded only; the kill/wait logic below is unchanged
         try:
-            process.wait(timeout=timeout)
-            return False, process.returncode
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
-            return True, None
+            try:
+                process.wait(timeout=timeout)
+                return False, process.returncode
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+                return True, None
+        finally:
+            _LIVE_CHILDREN.discard(process.pid)
 
 
 def _item_specs(suite: EvaluationSuite) -> list[dict]:
@@ -136,6 +150,38 @@ def _item_specs(suite: EvaluationSuite) -> list[dict]:
 
 def _failed(item_id: str, reason: str, exception: str | None = None) -> ItemOutcome:
     return ItemOutcome(item_id, False, expected="the item to run to completion", actual=reason, exception=exception)
+
+
+def sweep_stale_eval_dirs(max_age_seconds: float = 3600.0) -> int:
+    """Delete evaluator working directories left behind by a process that was hard-killed before its
+    `finally` cleanup could run (a normal run always removes its own directory). Returns the count removed.
+
+    Safety: it only considers entries DIRECTLY under the system temp directory whose name starts with
+    EVAL_DIR_PREFIX and which are real directories (not symlinks), older than `max_age_seconds`. It never
+    recurses into, or deletes, anything whose name does not carry the prefix, so it cannot touch unrelated
+    files even if they sit in the same temp directory."""
+    if not EVAL_DIR_PREFIX:  # defensive: an empty prefix would match everything
+        return 0
+    root = Path(tempfile.gettempdir())
+    now = time.time()
+    removed = 0
+    try:
+        entries = list(root.iterdir())
+    except OSError:
+        return 0
+    for entry in entries:
+        if not entry.name.startswith(EVAL_DIR_PREFIX):
+            continue
+        try:
+            if entry.is_symlink() or not entry.is_dir():
+                continue
+            if now - entry.stat().st_mtime < max_age_seconds:
+                continue
+            shutil.rmtree(entry, ignore_errors=True)
+            removed += 1
+        except OSError:
+            continue
+    return removed
 
 
 def run_candidate(source: str, suite: EvaluationSuite, limits: RunLimits) -> RunReport:
@@ -153,7 +199,7 @@ def run_candidate(source: str, suite: EvaluationSuite, limits: RunLimits) -> Run
         message = _clip(f"{type(exc).__name__}: {exc}")
         return all_failed("source does not compile", ImportInfo(error=message), compiles=False, error=message)
 
-    workdir = Path(tempfile.mkdtemp(prefix="autoevolve_eval_"))
+    workdir = Path(tempfile.mkdtemp(prefix=EVAL_DIR_PREFIX))
     deadline = time.monotonic() + limits.total_timeout
     outcomes: dict[str, ItemOutcome] = {}
     import_info: ImportInfo | None = None

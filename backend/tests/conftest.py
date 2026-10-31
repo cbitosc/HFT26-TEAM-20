@@ -14,8 +14,55 @@ def _isolate_environment(monkeypatch):
                  "EVALUATION_TIMEOUT_SECONDS", "EVALUATION_TOTAL_TIMEOUT_SECONDS", "ALLOW_UNSANDBOXED_EVALUATION",
                  "LLM_MAX_RETRIES", "LLM_BACKOFF_SECONDS", "LLM_MAX_TOKENS", "GENERATOR_MAX_CODE_CHARS",
                  "LLM_MAX_CALLS_PER_EXECUTION", "LLM_MAX_TOTAL_TOKENS_PER_EXECUTION",
-                 "HIDDEN_SUITE_KEY", "HIDDEN_SUITE_KEY_FILE", "CORS_ALLOWED_ORIGINS"):
+                 "HIDDEN_SUITE_KEY", "HIDDEN_SUITE_KEY_FILE", "CORS_ALLOWED_ORIGINS",
+                 "EVALUATOR_TEMP_MAX_AGE_SECONDS"):
         monkeypatch.delenv(name, raising=False)
+
+
+def pytest_configure(config):
+    """A session backstop: if the whole run wedges, dump every thread's stack after 600s instead of
+    stalling silently. The per-test timeout (pytest.ini) catches a single hung test first, at 120s.
+    Also sweep any evaluator temp directories orphaned by an earlier hard-killed run (counts only)."""
+    import faulthandler
+
+    from app.evaluation.execution import sweep_stale_eval_dirs
+
+    faulthandler.dump_traceback_later(600, exit=True)
+    removed = sweep_stale_eval_dirs(3600.0)
+    if removed:
+        print(f"\n[session start] removed {removed} stale evaluator temp directories")
+
+
+def pytest_unconfigure(config):
+    import faulthandler
+
+    faulthandler.cancel_dump_traceback_later()
+
+
+@pytest.fixture(autouse=True)
+def _no_evaluator_artifacts_survive_a_test():
+    """After every test: no evaluator child process is still running, and no evaluator working directory
+    created during the test survives. The decrypted hidden-suite file lives inside that working directory
+    (written only for the child's lifetime), so this also proves no decrypted hidden tests are left on disk."""
+    import tempfile
+    from pathlib import Path
+
+    from app.evaluation.execution import EVAL_DIR_PREFIX, live_eval_children
+
+    root = Path(tempfile.gettempdir())
+
+    def eval_dirs() -> set[str]:
+        try:
+            return {p.name for p in root.iterdir() if p.name.startswith(EVAL_DIR_PREFIX) and p.is_dir()}
+        except OSError:
+            return set()
+
+    before = eval_dirs()
+    yield
+    leaked_dirs = eval_dirs() - before
+    live = live_eval_children()
+    assert not live, f"evaluator child process(es) still running after the test: {live}"
+    assert not leaked_dirs, f"evaluator temp directory(ies) left behind by the test: {leaked_dirs}"
 
 
 @pytest.fixture(autouse=True)

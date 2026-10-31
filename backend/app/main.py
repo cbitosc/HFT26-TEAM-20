@@ -1,4 +1,5 @@
 """FastAPI application factory."""
+import logging
 import uuid
 from contextlib import asynccontextmanager
 
@@ -19,6 +20,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        # Remove evaluator working directories orphaned by a hard-killed earlier process (a normal run
+        # cleans up its own). Only directories under the evaluator's own prefix are ever touched.
+        from app.evaluation.execution import sweep_stale_eval_dirs
+
+        swept = sweep_stale_eval_dirs(settings.evaluator_temp_max_age_seconds)
+        if swept:
+            logging.getLogger("app.sealing").info("startup: removed %d stale evaluator temp directories", swept)
         engine = create_db_engine(settings.database_url)
         init_db(engine)  # idempotent create-if-missing
         app.state.engine = engine

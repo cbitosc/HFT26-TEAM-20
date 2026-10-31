@@ -25,3 +25,9 @@ backend/data/
 *.db-journal
 *.db-wal
 *.db-shm
+# Frontend build output and TS build info
+dist/
+*.tsbuildinfo
+coverage/
+# Stray root lockfile (no root package.json; the real one is in frontend/)
+/package-lock.json

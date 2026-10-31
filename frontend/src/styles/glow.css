@@ -1,0 +1,20 @@
+:root {
+  --glow-green: rgba(34, 197, 94, 0.45);
+  --glow-red: rgba(240, 69, 90, 0.35);
+  --glow-blue: rgba(76, 141, 255, 0.4);
+  --glow-purple: rgba(176, 124, 245, 0.45);
+  --glow-grey: rgba(107, 114, 128, 0.25);
+}
+[data-theme="light"] {
+  --glow-green: rgba(34, 197, 94, 0.22);
+  --glow-red: rgba(240, 69, 90, 0.18);
+  --glow-blue: rgba(76, 141, 255, 0.2);
+  --glow-purple: rgba(176, 124, 245, 0.22);
+  --glow-grey: rgba(107, 114, 128, 0.14);
+}
+.glow-green { box-shadow: 0 0 0 1px var(--glow-green), 0 0 28px -10px var(--glow-green); }
+.glow-red { box-shadow: 0 0 0 1px var(--glow-red), 0 0 28px -10px var(--glow-red); }
+.glow-blue { box-shadow: 0 0 0 1px var(--glow-blue), 0 0 28px -10px var(--glow-blue); }
+.glow-purple { box-shadow: 0 0 0 1px var(--glow-purple), 0 0 28px -10px var(--glow-purple); }
+.glow-grey { box-shadow: 0 0 0 1px var(--glow-grey), 0 0 20px -10px var(--glow-grey); }
+.glow-transition { transition: box-shadow 220ms ease; }
