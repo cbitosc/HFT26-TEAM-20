@@ -53,6 +53,17 @@ class Settings(BaseSettings):
     # None = decide from app_env: allowed in development/test, refused in production unless set true.
     allow_unsandboxed_evaluation: bool | None = None
 
+    # Encryption at rest for uploaded hidden tests (app.sealing). A Fernet key, urlsafe-base64 of 32
+    # bytes. In production a missing key means uploads are refused; dev/test generate the key file below.
+    hidden_suite_key: SecretStr | None = None
+    hidden_suite_key_file: str = Field(default_factory=lambda: str(BACKEND_DIR / ".hidden_suite_key"))
+    # Browser origins allowed to call the API (comma-separated). No wildcard; credentials stay off.
+    cors_allowed_origins: str = "http://localhost:5173"
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [o.strip() for o in self.cors_allowed_origins.split(",") if o.strip()]
+
     @property
     def llm_configured(self) -> bool:
         return self.featherless_api_key is not None and bool(self.featherless_api_key.get_secret_value().strip())
@@ -63,7 +74,8 @@ class Settings(BaseSettings):
             return self.allow_unsandboxed_evaluation
         return self.app_env != "production"
 
-    @field_validator("featherless_api_key", "featherless_critic_model", "allow_unsandboxed_evaluation", mode="before")
+    @field_validator("featherless_api_key", "featherless_critic_model", "allow_unsandboxed_evaluation",
+                     "hidden_suite_key", mode="before")
     @classmethod
     def _blank_is_none(cls, value):
         if isinstance(value, str) and not value.strip():

@@ -50,7 +50,9 @@ def evaluate_version(session: Session, version_id: str, settings: Settings, *, s
     if suite is None:
         if not execution.suite_id:
             raise EvaluationSuiteUnavailableError("This execution has no committed evaluation suite.")
-        suite = get_suite(execution.suite_id)
+        from app.services import suite_service  # lazy: avoids an import cycle
+
+        suite = suite_service.evaluation_suite(session, execution.suite_id, settings)  # decrypts an uploaded suite
         if suite is None:
             raise EvaluationSuiteUnavailableError(f"Evaluation suite '{execution.suite_id}' is not available.")
         if suite.suite_hash != execution.suite_hash:

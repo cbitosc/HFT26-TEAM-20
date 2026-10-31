@@ -14,14 +14,22 @@ def commit_or_rollback(session: Session) -> None:
         raise
 
 
-def create_task(session: Session, data: TaskCreate) -> Task:
+def create_task(session: Session, data: TaskCreate, settings=None) -> Task:
+    """A task references either a registered suite (`evaluation_suite_id`) or an uploaded one. When a
+    suite is uploaded, its hidden tests are sealed and stored first, and the task points at it."""
+    suite_id = data.evaluation_suite_id
+    if data.suite is not None:
+        from app.services import suite_service  # lazy: avoids an import cycle
+
+        row = suite_service.create_uploaded_suite(session, data.suite.to_upload_dict(), settings)
+        suite_id = row.id
     task = Task(
         title=data.title,
         description=data.description,
         requirements=list(data.requirements),
         language=data.language,
         category=data.category,
-        evaluation_suite_id=data.evaluation_suite_id,
+        evaluation_suite_id=suite_id,
         starter_code=data.starter_code or None,
     )
     session.add(task)

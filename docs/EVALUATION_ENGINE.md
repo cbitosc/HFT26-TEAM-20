@@ -31,7 +31,9 @@ The merge-intervals suite (`python-merge-intervals-v1`) has 5 public and 10 hidd
 
 A suite can only be registered if it has at least one public and one hidden test, and if one hidden test is worth more than delta (Section 5).
 
-**Limitation.** The suite file is in the repository, so anyone who can read the repository can read the hidden tests. "Hidden" here means hidden from the agents and from API clients, not secret. Who holds hidden suites in production is an open PRD decision. User-uploaded suites (the PRD's New Task form) are not implemented.
+**Registered suites** (like `python-merge-intervals-v1`) live in the repository, so anyone who can read the repository can read their hidden tests. "Hidden" there means hidden from the agents and the API, not secret.
+
+**Uploaded suites (Milestone 08A).** A task may instead carry an inline suite submitted over the API. Its tests are data, parsed with `ast.literal_eval` (never executed), and its **hidden tests are encrypted at rest** (Fernet) in the `uploaded_suites` table. Hidden tests are decrypted only inside the backend at evaluation time and are never returned by any endpoint (only counts and hashes are). The encryption key lives on the evaluator's host, so this is encryption at rest, not protection from a compromised host; and the subprocess runner writes the decrypted suite to a per-run temp directory for the duration of the child, then deletes it. Who holds hidden suites in production is still an open PRD decision.
 
 ---
 

@@ -56,6 +56,8 @@ Every response, including errors, has the same shape.
 | 404 | `EVIDENCE_RECORD_NOT_FOUND`, `EVIDENCE_BUNDLE_NOT_FOUND` | No such evidence record / no bundle built yet for it |
 | 503 | `LLM_NOT_CONFIGURED` | A run was requested but no Featherless API key is configured |
 | 409 | `RUN_ALREADY_STARTED` | A run was already claimed for this execution; also returned for a stalled one (it is not resumed) |
+| 422 | `SUITE_UPLOAD_REJECTED` | An uploaded suite is malformed or unsafe (non-literal, executable, oversized, too nested, duplicate/shared ids, bad check) |
+| 409 | `HIDDEN_SUITE_UNAVAILABLE` | A suite upload needs hidden-test encryption, and no `HIDDEN_SUITE_KEY` is configured |
 | 422 | `VALIDATION_ERROR` | Invalid body, query parameter or filter value |
 | 500 | `INTERNAL_ERROR` | Unexpected error. The message is generic and no stack trace is returned |
 | 503 | `DATABASE_UNAVAILABLE` | Health check cannot reach the database |
@@ -101,17 +103,45 @@ Request (unknown fields, such as `status` or `id`, are rejected with 422):
 | `requirements` | string[] | optional, up to 50 items of 1 to 1,000 characters |
 | `language` | string or null | optional, up to 32 characters |
 | `category` | string or null | optional, up to 64 characters |
-| `evaluation_suite_id` | string or null | optional; must be the id of a suite registered in the backend (today only `python-merge-intervals-v1`), otherwise 422. A client can only **select** a suite, never define tests. A run cannot start without one |
+| `evaluation_suite_id` | string or null | a registered suite id (today only `python-merge-intervals-v1`), otherwise 422. Selects a suite; it cannot define tests |
+| `suite` | object or null | an inline uploaded suite (below). Mutually exclusive with `evaluation_suite_id` |
 | `starter_code` | string or null | optional, up to 50,000 characters; shown to the Generator as its starting point |
+
+A task needs **exactly one** suite source: either `evaluation_suite_id` or `suite`. Neither, or both, is 422 ("a task needs a suite" / "not both").
+
+**Inline `suite` (uploaded).** Tests are DATA, parsed as Python literals with `ast.literal_eval`; test code is never accepted or executed. Hidden tests are encrypted at rest before storage and are never returned.
+
+| `suite` field | Type | Rules |
+|---|---|---|
+| `entrypoint` | string | required, 1 to 64 characters |
+| `language` | string | default `python` |
+| `description` | string | up to 1000 characters |
+| `contract` | object | `{arity (0-10), smoke_args (literal tuple string), smoke_type (type name)}` |
+| `max_complexity` | int | 1 to 100, default 10 |
+| `public_tests` | test[] | 1 to 100; may be shown to agents and clients |
+| `hidden_tests` | test[] | 1 to 100, but the delta rule caps the hidden count (49 for the default delta); never revealed |
+
+Each test is `{id, description, checks[]}`. Each check is `{kind, args, expected}`: `kind` is one of `returns`, `raises`, `unchanged_input`, `all_items_of_type`; `args` is a Python-literal **tuple** string (e.g. `"([(1, 3), (2, 6)],)"`); `expected` is a literal string for `returns`, a built-in exception name for `raises`, a type name for `all_items_of_type`, omitted for `unchanged_input`. Test ids must be unique and not shared between public and hidden. Non-literal, executable, oversized or too-deeply-nested values are 422 `SUITE_UPLOAD_REJECTED`. If hidden-suite encryption is unavailable (no key), 409 `HIDDEN_SUITE_UNAVAILABLE`.
 
 ```json
 {
   "title": "Merge intervals",
   "description": "Implement merge_intervals(intervals).",
-  "requirements": ["Merge overlapping intervals", "Do not mutate the input"],
-  "language": "python",
-  "category": "algorithms",
   "evaluation_suite_id": "python-merge-intervals-v1"
+}
+```
+
+Or with an uploaded suite:
+
+```json
+{
+  "title": "Square", "description": "Implement f(x).",
+  "suite": {
+    "entrypoint": "f",
+    "contract": {"arity": 1, "smoke_args": "(1,)", "smoke_type": "int"},
+    "public_tests": [{"id": "pub1", "description": "", "checks": [{"kind": "returns", "args": "(2,)", "expected": "4"}]}],
+    "hidden_tests": [{"id": "hid1", "description": "", "checks": [{"kind": "returns", "args": "(3,)", "expected": "9"}]}]
+  }
 }
 ```
 
@@ -128,9 +158,16 @@ Response `data` (`TaskRead`):
   "evaluation_suite_id": "python-merge-intervals-v1",
   "status": "active",
   "created_at": "2026-10-30T12:00:00Z",
-  "updated_at": "2026-10-30T12:00:00Z"
+  "updated_at": "2026-10-30T12:00:00Z",
+  "suite": {
+    "id": "python-merge-intervals-v1", "source": "registered",
+    "public_test_count": 5, "hidden_test_count": 10,
+    "suite_hash": "<sha256>", "public_suite_hash": "<sha256>", "hidden_suite_hash": "<sha256>"
+  }
 }
 ```
+
+`suite` reports the suite's counts and committed hashes (for an uploaded suite, `source` is `"uploaded"` and its id is `u<hex>`). For an uploaded suite the response returns **counts and hashes only**: never hidden test ids, names, inputs or expected values.
 
 `status` is `active` or `archived`. Only `active` is produced today.
 
@@ -541,7 +578,7 @@ Critic feedback is advisory and is not an evaluation result. `confidence` is the
 | Method | Path | Success | Notes |
 |---|---|---|---|
 | GET | `/api/health` | 200 | 503 if the database is unreachable |
-| POST | `/api/tasks` | 201 | |
+| POST | `/api/tasks` | 201 | registered `evaluation_suite_id` or an inline uploaded `suite`; hidden tests sealed |
 | GET | `/api/tasks` | 200 | paginated |
 | GET | `/api/tasks/{task_id}` | 200 | |
 | POST | `/api/tasks/{task_id}/executions` | 201 | creates a queued execution and records its commitment; 409 without a suite |
@@ -558,7 +595,22 @@ Critic feedback is advisory and is not an evaluation result. `confidence` is the
 | GET | `/api/versions/{version_id}/critic-feedback` | 200 | |
 | POST | `/api/evidence/{record_id}/bundle` | 201 / 200 | builds or returns the bundle; empty body only; `include_code` query |
 | GET | `/api/evidence/{record_id}/bundle` | 200 | stored bundle + re-verified hash |
+| GET | `/api/status` | 200 | capability flags (booleans): Featherless, Critic, evaluator mode, encryption, publishing |
+| GET | `/api/dashboard/executions` | 200 | executions with task title, status, stalled, best hidden accuracy |
+| GET | `/api/executions/{execution_id}/tree` | 200 | version tree: public/hidden counts, decision, failed terms, parent links, generation metadata, advisory critic note |
+| GET | `/api/versions/{version_id}/diff` | 200 | unified diff and changelog; `against=parent` (default) |
+
+## 6a. Dashboard endpoints (read-only, hidden-safe)
+
+These exist for the dashboard. Every one returns hidden tests as **counts only**: no hidden test id, name, input, expected value or per-test result appears in any of them.
+
+- **`GET /api/status`** returns `{featherless_configured, critic_configured, evaluator_mode, hidden_suite_encryption_available, publishing}`. `featherless_configured` and `critic_configured` are booleans (never the key or model id). `evaluator_mode` is `subprocess` or `disabled`. `publishing` is always `"not available"` (no ZK/IPFS/chain yet).
+- **`GET /api/dashboard/executions`** is a page of `{id, task_id, task_title, status, stalled, best_version_id, best_hidden_accuracy, created_at, updated_at}`. `best_hidden_accuracy` is the hidden-suite pass rate of the best version's latest evaluation, or `null`.
+- **`GET /api/executions/{id}/tree`** returns the task title, status, stalled flag, best version and, per version: `hidden`/`public` `{passed, total}` (null before evaluation), `overall_score`, `acceptance_status`, `failed_terms`, `parent_version_id`, generation metadata (`generator_model_id`, token counts), and `critic_note` with `critic_note_kind: "advisory"`.
+- **`GET /api/versions/{id}/diff?against=parent`** returns the unified diff against the parent version and the deterministic changelog. `against` other than `parent` is 404.
+
+**CORS.** Browser access is limited to an allowlist from `CORS_ALLOWED_ORIGINS` (default `http://localhost:5173`). There is no wildcard origin, and credentials are off. The allowed origin is echoed in `Access-Control-Allow-Origin`; other origins are not.
 
 ## 7. Not yet implemented
 
-ZK proof generation and verification, IPFS publication and retrieval (bundles are local only), the egress gate, blockchain registration (including the on-chain hidden-suite commitment), the lesson validator, Agent B transfer and attestations, capabilities, cross-agent memory endpoints, and the `/status` external-service check. User-uploaded test suites are not supported: suites are defined in the backend.
+ZK proof generation and verification, IPFS publication and retrieval (bundles are local only), the egress gate, blockchain registration (including the on-chain hidden-suite commitment), the lesson validator, Agent B transfer and attestations, capabilities, and cross-agent memory endpoints.

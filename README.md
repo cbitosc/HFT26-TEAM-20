@@ -136,6 +136,8 @@ Sections 4, 5 and 9 below describe the *intended* demonstration. This table says
 | Code-hash binding (`code_sha256` on versions and evaluations; gate precondition `same_code_hash_as_evaluated`) | **Implemented** |
 | Local evidence bundles (canonical JSON + SHA-256, hidden-safe, rejected attempts as negative evidence, immutable) | **Implemented** (`POST/GET /api/evidence/{record_id}/bundle`); local only, nothing uploaded |
 | Run concurrency and limits: one run per execution (compare-and-swap claim, `RUN_ALREADY_STARTED`), per-step database sessions, no auto-resume after a restart (`stalled`), per-execution caps of 6 LLM calls and 40,000 tokens | **Implemented** |
+| User-uploaded suites: public and hidden tests as data (parsed as literals, never executed), hidden tests **encrypted at rest** (Fernet), decrypted only at evaluation time; counts and hashes only ever leave the backend | **Implemented** (Milestone 08A). The key lives on the evaluator's host: encryption at rest, not protection from a compromised host |
+| Dashboard-facing read endpoints (`/api/status`, `/api/dashboard/executions`, `/tree`, `/diff`) and a CORS allowlist | **Implemented** (hidden-safe, read-only) |
 | Featherless client (temperature 0, pinned model, retry/backoff), Generator, Critic, orchestrator (`POST /api/executions/{id}/run`, V1 → final state) | **Implemented** (`backend/app/llm`, `backend/app/agents`, `backend/app/services/orchestrator.py`). Tested with a scripted fake LLM only; no live run has been made in this milestone (`eval/live_smoke.py` exists, env-gated) |
 | Lifecycle: completion decoupled from publishing; second critique (`critiquing_v2`) before V3 | **Implemented** |
 | Backend integration of ZK proofs, IPFS (Pinata), egress gate, Sepolia registry and on-chain commitment | Not yet implemented |
@@ -343,6 +345,10 @@ All paths are under `/api`. Full request and response schemas are in `docs/API_C
 | `/api/versions/{version_id}/acceptance-decision` | POST | Apply the acceptance policy to persisted evaluations (empty body) |
 | `/api/versions/{version_id}/critic-feedback` | GET | Stored Critic feedback of a version |
 | `/api/evidence/{record_id}/bundle` | POST, GET | Build (idempotent) or read a local, hash-addressed evidence bundle (empty body) |
+| `/api/status` | GET | Capability flags (booleans) for the dashboard |
+| `/api/dashboard/executions` | GET | Executions with task title, status, stalled flag, best hidden accuracy |
+| `/api/executions/{execution_id}/tree` | GET | Version tree with public/hidden counts, decisions, failed terms, generation metadata |
+| `/api/versions/{version_id}/diff` | GET | Unified diff against the parent and the deterministic changelog |
 
 There is deliberately no endpoint for clients to submit evaluation scores, force an acceptance, or claim an improvement. Clients can only ask the backend to evaluate or to apply the policy; any field in those request bodies is rejected.
 

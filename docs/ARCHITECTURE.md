@@ -593,6 +593,14 @@ evaluating_v2 | evaluating_v3 -> zk_proof -> ipfs_publish -> blockchain_register
 - The gate also requires `same_code_hash_as_evaluated`: an evaluation is compared only if it ran exactly the code now stored for its version. Code edited after creation is not evaluated, and code edited after evaluation produces an invalid comparison.
 - Evidence bundles contain hidden tests as counts only and never contain Critic text. Bundle rows cannot be updated or deleted (SQLite triggers), and their hash is re-verified on every read. They are local only: nothing is uploaded.
 
+### 10.4a Uploaded suites and dashboard endpoints (Milestone 08A)
+
+- **Uploaded suites.** A task may carry an inline `suite` (public and hidden tests as data). Test inputs and expected values are Python-literal strings parsed with `ast.literal_eval` only; test code is never accepted or executed. The public tests and spec are stored in plaintext; the hidden tests are **encrypted at rest** (Fernet, `app/sealing.py`) in `uploaded_suites`. The three committed hashes are stored so an execution's commitment is recorded at run start without decrypting anything. Decryption happens only inside the backend (evaluator and orchestrator) at evaluation time, and a reconstructed suite is verified against its stored hashes before use.
+  - **Security limit, stated plainly:** the encryption key lives on the same host as the evaluator (an env var or a local key file). This is encryption at rest. It protects a stolen database file or backup; it does not protect against an attacker who already controls the host, who can read the key. The subprocess runner also writes the suite (including decrypted hidden tests) to a per-run temp directory while the child runs, then deletes it; nothing persists the plaintext.
+  - No endpoint ever returns hidden test ids, names, inputs, expected values or per-test results. The upload response returns counts and hashes only.
+- **Dashboard endpoints** (`app/api/routes/dashboard.py`) are read-only and hidden-safe: `/api/status` (capability booleans), `/api/dashboard/executions` (title, status, stalled, best hidden accuracy), `/api/executions/{id}/tree` (per-version public/hidden counts, decision, failed terms, generation metadata, advisory critic note), `/api/versions/{id}/diff` (unified diff + changelog).
+- **CORS** is an allowlist from `CORS_ALLOWED_ORIGINS` (default `http://localhost:5173`), no wildcard, credentials off.
+
 ### 10.5 No-improvement outcome and the proof-stage guard
 
 **Resolved (Milestone 05.1):** an execution in which no revision improves the solution has an honest terminal outcome, `completed_no_improvement`, instead of being forced into `failed`, `cancelled` or the proof stage. See section 10.3.

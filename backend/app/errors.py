@@ -67,6 +67,19 @@ class CodeHashMismatchError(ConflictError):
     code = "CODE_HASH_MISMATCH"
 
 
+class SuiteUploadRejectedError(AppError):
+    """A declarative suite upload is malformed or unsafe. The message echoes the client's own input only."""
+
+    status_code = 422
+    code = "SUITE_UPLOAD_REJECTED"
+
+
+class HiddenSuiteUnavailableError(ConflictError):
+    """Hidden-suite encryption is not available (no key), so an uploaded suite cannot be sealed."""
+
+    code = "HIDDEN_SUITE_UNAVAILABLE"
+
+
 class EvidenceNotExportableError(ConflictError):
     """Only validated_improvement and rejected_attempt records can be exported as bundles."""
 

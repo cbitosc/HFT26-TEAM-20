@@ -521,8 +521,12 @@ def test_api_errors(client, db, eid, make_task):
     v = ver.create_version(db, eid, source("gen_coder"))
     r = client.post(f"/api/versions/{v.id}/acceptance-decision")
     assert r.status_code == 409 and r.json()["error"]["code"] == "EVALUATION_REQUIRED"  # baseline not evaluated
-    no_suite = make_task(evaluation_suite_id=None)["id"]
-    r = client.post(f"/api/tasks/{no_suite}/executions")
+    from app.models import Task
+
+    suiteless = Task(title="no suite", description="d", requirements=[], evaluation_suite_id=None)
+    db.add(suiteless)
+    db.commit()
+    r = client.post(f"/api/tasks/{suiteless.id}/executions")
     assert r.status_code == 409 and r.json()["error"]["code"] == "EVALUATION_SUITE_UNAVAILABLE"
 
 

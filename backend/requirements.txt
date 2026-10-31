@@ -10,5 +10,8 @@ pydantic-settings==2.16.2
 # starlette.testclient (httpx is deprecated for it as of Starlette 1.10).
 httpx2==2.16.0
 
+# Encryption at rest for uploaded hidden tests (app/sealing): Fernet (AES-128-CBC + HMAC).
+cryptography==46.0.3
+
 # Testing
 pytest==9.2.0

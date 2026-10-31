@@ -238,3 +238,24 @@ def test_run_concurrency_restart_and_budget_rules_are_documented_and_match_the_c
     example = read(BACKEND_DIR / ".env.example")
     assert "LLM_MAX_CALLS_PER_EXECUTION" in example and "LLM_MAX_TOTAL_TOKENS_PER_EXECUTION" in example
     assert "not resumed" in read(ROOT / "docs" / "ARCHITECTURE.md")
+
+
+def test_uploaded_suite_and_dashboard_docs_are_present_and_honest():
+    api = read(ROOT / "docs" / "API_CONTRACT.md")
+    for text in ("SUITE_UPLOAD_REJECTED", "HIDDEN_SUITE_UNAVAILABLE", "/api/dashboard/executions",
+                 "/api/status", "ast.literal_eval", "encrypted at rest", "counts and hashes only"):
+        assert text in api, text
+    arch = read(ROOT / "docs" / "ARCHITECTURE.md")
+    engine = read(ROOT / "docs" / "EVALUATION_ENGINE.md")
+    # The key-on-host limitation must be stated plainly in both the architecture and the engine docs.
+    assert "not protect against an attacker who already controls the host" in arch
+    assert "not protection from a compromised host" in engine
+    example = read(BACKEND_DIR / ".env.example")
+    assert "HIDDEN_SUITE_KEY" in example and "CORS_ALLOWED_ORIGINS" in example
+
+
+def test_env_example_never_contains_a_real_fernet_key():
+    # The placeholder must be empty; a real key is 44 urlsafe-base64 chars ending in '='.
+    for line in read(BACKEND_DIR / ".env.example").splitlines():
+        if line.startswith("HIDDEN_SUITE_KEY="):
+            assert line.strip() == "HIDDEN_SUITE_KEY="

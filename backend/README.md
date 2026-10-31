@@ -46,6 +46,9 @@ Settings come from environment variables or `backend/.env` (git-ignored). `.env.
 | `LLM_BACKOFF_SECONDS` | `1.0` | First retry delay; doubles each retry |
 | `LLM_MAX_TOKENS` | `2048` | `max_tokens` per completion. Temperature is fixed at 0 in code |
 | `GENERATOR_MAX_CODE_CHARS` | `20000` | Longer Generator code is rejected (`GENERATOR_OUTPUT_INVALID`) |
+| `HIDDEN_SUITE_KEY` | unset | Fernet key for encrypting uploaded hidden tests. In `production` a missing key means suite uploads are refused; `development`/`test` generate a key file instead |
+| `HIDDEN_SUITE_KEY_FILE` | `<backend>/.hidden_suite_key` | Where dev/test writes a generated key (git-ignored). Never printed or logged |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated browser origin allowlist. No wildcard; credentials off |
 | `LLM_MAX_CALLS_PER_EXECUTION` | `6` | Cap on Generator + Critic calls per execution (a normal run makes at most 5). Exceeding it fails the run (`LLM_CALL_BUDGET_EXCEEDED`) |
 | `LLM_MAX_TOTAL_TOKENS_PER_EXECUTION` | `40000` | Cap on total tokens per execution, checked before each call and again after it (`LLM_TOKEN_BUDGET_EXCEEDED`) |
 

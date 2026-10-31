@@ -2,6 +2,9 @@
 .env
 *.env
 .env.local
+# Hidden-suite encryption key generated in dev/test (never commit a key)
+.hidden_suite_key
+backend/.hidden_suite_key
 
 # Node
 node_modules/

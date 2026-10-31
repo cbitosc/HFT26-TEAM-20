@@ -47,12 +47,17 @@ from app.errors import (
     NotFoundError,
     RunAlreadyStartedError,
 )
-from app.evaluation.suites import get_suite
 from app.lifecycle import TERMINAL_STATUSES, ExecutionStatus as S
 from app.llm.client import LLMClient, LLMError, LLMResponse
 from app.models import Execution, LLMCall, Task, Version
 from app.schemas.critic_feedback import CriticFeedbackInput
-from app.services import acceptance_service, evaluation_service, execution_service, version_service
+from app.services import (
+    acceptance_service,
+    evaluation_service,
+    execution_service,
+    suite_service,
+    version_service,
+)
 
 log = logging.getLogger("app.orchestrator")
 SessionFactory = Callable[[], Session]
@@ -126,7 +131,8 @@ def start_run(session: Session, execution_id: str, settings: Settings, instance_
         raise EvaluationExecutionDisabledError(
             "Running candidate code is disabled in this environment, so a run cannot start.")
     execution = execution_service.get_execution(session, execution_id)
-    if get_suite(execution.suite_id) is None and execution.run_claimed_at is None and execution.status == S.QUEUED.value:
+    if (suite_service.suite_commitment(session, execution.suite_id) is None
+            and execution.run_claimed_at is None and execution.status == S.QUEUED.value):
         raise EvaluationSuiteUnavailableError("The execution's committed evaluation suite is not available.")
     claim_run(session, execution_id, instance_id)
     return execution_service.transition_execution(session, execution_id, S.GENERATING_V1)
@@ -351,7 +357,7 @@ def _drive(factory: SessionFactory, eid: str, llm: LLMClient, settings: Settings
         row = session.get(Task, execution.task_id)
         task = SimpleNamespace(title=row.title, description=row.description, requirements=list(row.requirements),
                                language=row.language, starter_code=row.starter_code)
-        suite = get_suite(execution.suite_id)
+        suite = suite_service.evaluation_suite(session, execution.suite_id, settings)
         max_revisions = execution.max_revisions
     if suite is None:
         raise EvaluationSuiteUnavailableError("The execution's committed evaluation suite is not available.")

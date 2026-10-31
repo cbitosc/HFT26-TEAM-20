@@ -55,7 +55,9 @@ def create_execution(
     task = session.get(Task, task_id)
     if task is None:
         raise NotFoundError("task", task_id)
-    suite = get_suite(task.evaluation_suite_id)
+    from app.services import suite_service  # lazy: avoids an import cycle
+
+    suite = suite_service.suite_commitment(session, task.evaluation_suite_id)
     if suite is None:
         raise EvaluationSuiteUnavailableError(
             "This task has no available evaluation suite (public and hidden tests), so a run cannot start."

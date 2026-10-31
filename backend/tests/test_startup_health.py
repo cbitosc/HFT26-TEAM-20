@@ -52,7 +52,8 @@ def test_explicit_database_init_command_creates_the_schema(tmp_path):
 
 def test_startup_is_idempotent_on_existing_database(settings):
     with TestClient(create_app(settings)) as c1:
-        task = c1.post("/api/tasks", json={"title": "t", "description": "d"}).json()["data"]
+        task = c1.post("/api/tasks", json={"title": "t", "description": "d",
+                                           "evaluation_suite_id": "python-merge-intervals-v1"}).json()["data"]
     with TestClient(create_app(settings)) as c2:  # restart against the same file keeps data
         assert c2.get(f"/api/tasks/{task['id']}").status_code == 200
 

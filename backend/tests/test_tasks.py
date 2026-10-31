@@ -15,11 +15,25 @@ def test_create_task(client, task_payload):
 
 
 def test_create_task_minimal_and_trims_whitespace(client):
-    r = client.post("/api/tasks", json={"title": "  Hello  ", "description": " body ", "language": "  "})
+    r = client.post("/api/tasks", json={"title": "  Hello  ", "description": " body ", "language": "  ",
+                                        "evaluation_suite_id": "python-merge-intervals-v1"})
     assert r.status_code == 201
     data = r.json()["data"]
     assert data["title"] == "Hello" and data["description"] == "body"
     assert data["requirements"] == [] and data["language"] is None
+
+
+def test_a_task_needs_a_suite(client):
+    r = client.post("/api/tasks", json={"title": "t", "description": "d"})
+    assert r.status_code == 422 and "needs a suite" in r.text
+
+
+def test_a_task_cannot_set_both_a_registered_and_an_inline_suite(client):
+    r = client.post("/api/tasks", json={"title": "t", "description": "d",
+                                        "evaluation_suite_id": "python-merge-intervals-v1",
+                                        "suite": {"entrypoint": "f", "contract": {"arity": 1, "smoke_args": "(1,)",
+                                                  "smoke_type": "int"}, "public_tests": [], "hidden_tests": []}})
+    assert r.status_code == 422
 
 
 def test_task_ids_are_unique(make_task):

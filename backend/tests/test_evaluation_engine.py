@@ -383,13 +383,18 @@ def test_temporary_directories_are_removed_in_every_outcome(monkeypatch):
 
 
 def test_a_run_cannot_start_without_a_suite(db, make_task):
-    """PRD: Start Run needs public and hidden tests; if the commitment cannot be recorded, no run starts."""
+    """A task now always has a suite, but the downstream guard still refuses a suite-less Task row
+    (built here directly, bypassing the schema that requires a suite)."""
+    from app.models import Task
+
+    task = Task(title="no suite", description="d", requirements=[], evaluation_suite_id=None)
+    db.add(task)
+    db.commit()
+    with pytest.raises(EvaluationSuiteUnavailableError):
+        exe.create_execution(db, task.id)
     from app.models import Execution
 
-    task_id = make_task(evaluation_suite_id=None)["id"]
-    with pytest.raises(EvaluationSuiteUnavailableError):
-        exe.create_execution(db, task_id)
-    assert db.query(Execution).filter(Execution.task_id == task_id).count() == 0
+    assert db.query(Execution).filter(Execution.task_id == task.id).count() == 0
 
 
 def test_a_suite_changed_after_the_commitment_is_refused(db, make_version, settings_for_service, monkeypatch):
