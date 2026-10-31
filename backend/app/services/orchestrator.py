@@ -292,7 +292,26 @@ def _evaluate(factory, settings, execution_id, version: Version) -> _Evidence:
 def _decide(factory, execution_id, version: Version):
     _check(factory, execution_id)
     with _step(factory) as session:
-        return acceptance_service.decide_acceptance(session, version.id)
+        decision = acceptance_service.decide_acceptance(session, version.id)
+    # Agent B: record a transferable lesson from an accepted improvement. Best-effort and isolated —
+    # it opens its own session and can never fail the run or alter the decision transaction.
+    if decision.outcome == "validated_improvement":
+        _store_lesson_safely(factory, version.id)
+    return decision
+
+
+def _store_lesson_safely(factory, version_id: str) -> None:
+    try:
+        from app.services import memory_service
+
+        with _step(factory) as session:
+            memory_service.store_lesson(session, version_id)
+    except Exception:  # pragma: no cover - never let memory storage affect a run
+        import logging
+
+        logging.getLogger("app.orchestrator").warning(
+            "transfer lesson not stored for version %s", version_id
+        )
 
 
 def _revision(best: _Best, critic_output, rejected_terms=()) -> RevisionContext:
