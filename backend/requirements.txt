@@ -1,0 +1,19 @@
+# AutoEvolve backend. Versions are the ones the test suite was run against.
+# Install into the backend-local virtual environment only:  python -m pip install -r requirements.txt
+
+# Runtime
+fastapi==0.162.0
+uvicorn==0.54.0
+SQLAlchemy==2.1.6
+pydantic-settings==2.16.2
+# HTTP client for the Featherless API (app/llm), imported as `httpx2`. Also required by
+# starlette.testclient (httpx is deprecated for it as of Starlette 1.10).
+httpx2==2.16.0
+
+# Encryption at rest for uploaded hidden tests (app/sealing): Fernet (AES-128-CBC + HMAC).
+cryptography==46.0.3
+
+# Testing
+pytest==9.2.0
+# Per-test timeout so a hung test fails with a stack dump instead of stalling the whole run.
+pytest-timeout==2.4.0
