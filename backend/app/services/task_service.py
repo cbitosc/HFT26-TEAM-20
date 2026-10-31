@@ -21,6 +21,8 @@ def create_task(session: Session, data: TaskCreate) -> Task:
         requirements=list(data.requirements),
         language=data.language,
         category=data.category,
+        evaluation_suite_id=data.evaluation_suite_id,
+        starter_code=data.starter_code or None,
     )
     session.add(task)
     commit_or_rollback(session)

@@ -24,6 +24,10 @@ class Task(Base):
     requirements: Mapped[list[str]] = mapped_column(JSON, default=list)
     language: Mapped[str | None] = mapped_column(String(32), nullable=True)
     category: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    # Id of a trusted, backend-defined evaluation suite (app.evaluation.suites). Not an LLM-made test.
+    evaluation_suite_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    # Optional code the Generator starts from (shown to it as-is). Never contains hidden tests.
+    starter_code: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(16), default=TaskStatus.ACTIVE.value, index=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)

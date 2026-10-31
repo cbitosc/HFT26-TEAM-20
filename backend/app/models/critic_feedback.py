@@ -16,6 +16,7 @@ class CriticFeedback(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     version_id: Mapped[str] = mapped_column(ForeignKey("versions.id", ondelete="RESTRICT"), index=True)
+    # The model id the API returned (falls back to the requested id when the API reports none).
     critic_model_id: Mapped[str] = mapped_column(String(200))
     raw_feedback: Mapped[str] = mapped_column(Text)
     structured_feedback: Mapped[dict | None] = mapped_column(JSON, nullable=True)

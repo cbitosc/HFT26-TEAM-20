@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import CheckConstraint, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base, UTCDateTime, new_id, utcnow
@@ -44,6 +44,16 @@ class Execution(Base):
             f"max_revisions BETWEEN {MIN_REVISIONS} AND {MAX_REVISIONS}", name="ck_executions_max_revisions"
         ),
         Index("ix_executions_task_id_created_at", "task_id", "created_at"),
+        CheckConstraint("(run_claimed_at IS NULL) = (run_claimed_by IS NULL)", name="ck_executions_run_claim"),
+        # The commitment is all-or-nothing, and delta is strictly positive.
+        CheckConstraint(
+            "(suite_id IS NULL AND suite_hash IS NULL AND public_suite_hash IS NULL AND hidden_suite_hash IS NULL "
+            "AND evaluator_config_hash IS NULL AND scoring_rule_version IS NULL AND delta IS NULL AND committed_at IS NULL) "
+            "OR (suite_id IS NOT NULL AND suite_hash IS NOT NULL AND public_suite_hash IS NOT NULL "
+            "AND hidden_suite_hash IS NOT NULL AND evaluator_config_hash IS NOT NULL "
+            "AND scoring_rule_version IS NOT NULL AND delta > 0 AND committed_at IS NOT NULL)",
+            name="ck_executions_commitment",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
@@ -66,6 +76,22 @@ class Execution(Base):
         ForeignKey("versions.id", ondelete="SET NULL", use_alter=True, name="fk_executions_best_version"),
         nullable=True,
     )
+    # Commitment recorded when the execution is created, BEFORE any version is generated (PRD Section 3A).
+    # Every evaluation used by the acceptance gate must match it. An on-chain copy is planned, not built.
+    suite_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    suite_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    public_suite_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    hidden_suite_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    evaluator_config_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    scoring_rule_version: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    delta: Mapped[float | None] = mapped_column(Float, nullable=True)
+    committed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    # "Run claimed" marker. Set by one compare-and-swap UPDATE (WHERE status = 'queued' AND
+    # run_claimed_at IS NULL), so two calls cannot start two runs. run_claimed_by is the id of the server
+    # process that claimed it; a non-terminal execution claimed by another process is reported as
+    # `stalled` and is never resumed automatically.
+    run_claimed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    run_claimed_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     task: Mapped["Task"] = relationship(back_populates="executions")  # noqa: F821
     transitions: Mapped[list["ExecutionTransition"]] = relationship(

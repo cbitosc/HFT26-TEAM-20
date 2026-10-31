@@ -11,6 +11,7 @@ from app.lifecycle import (
     is_terminal,
 )
 from app.services import execution_service as svc
+from tests.helpers import advance
 
 HAPPY_PATH = [
     S.GENERATING_V1, S.EVALUATING_V1, S.CRITIQUING, S.GENERATING_V2, S.EVALUATING_V2,
@@ -18,7 +19,7 @@ HAPPY_PATH = [
 ]
 PATH_WITH_V3 = [
     S.GENERATING_V1, S.EVALUATING_V1, S.CRITIQUING, S.GENERATING_V2, S.EVALUATING_V2,
-    S.GENERATING_V3, S.EVALUATING_V3, S.ZK_PROOF, S.IPFS_PUBLISH, S.BLOCKCHAIN_REGISTER, S.COMPLETED,
+    S.CRITIQUING_V2, S.GENERATING_V3, S.EVALUATING_V3, S.ZK_PROOF, S.IPFS_PUBLISH, S.BLOCKCHAIN_REGISTER, S.COMPLETED,
 ]
 NON_TERMINAL = [s for s in S if s not in TERMINAL_STATUSES]
 
@@ -38,7 +39,10 @@ def test_every_non_terminal_state_can_fail_or_be_cancelled(status):
 def test_table_matches_the_approved_lifecycle_exactly():
     forward = {(a, b) for a in S for b in allowed_transitions(a) if b not in (S.FAILED, S.CANCELLED)}
     expected = set(zip([S.QUEUED] + HAPPY_PATH[:-1], HAPPY_PATH))
-    expected |= {(S.EVALUATING_V2, S.GENERATING_V3), (S.GENERATING_V3, S.EVALUATING_V3), (S.EVALUATING_V3, S.ZK_PROOF)}
+    expected |= {(S.EVALUATING_V2, S.CRITIQUING_V2), (S.CRITIQUING_V2, S.GENERATING_V3),
+                 (S.GENERATING_V3, S.EVALUATING_V3), (S.EVALUATING_V3, S.ZK_PROOF)}
+    # Milestone 07B: completion decoupled from publishing
+    expected |= {(S.EVALUATING_V2, S.COMPLETED), (S.EVALUATING_V3, S.COMPLETED)}
     # the only addition since the original lifecycle: no-improvement is reachable from the two final evaluation states
     expected |= {(S.EVALUATING_V2, S.COMPLETED_NO_IMPROVEMENT), (S.EVALUATING_V3, S.COMPLETED_NO_IMPROVEMENT)}
     assert forward == expected
@@ -68,7 +72,7 @@ def _new_execution(client, make_execution, db):
 def test_full_path_is_persisted_with_history(client, make_execution, db, path):
     eid = _new_execution(client, make_execution, db)
     for status in path:
-        ex = svc.transition_execution(db, eid, status)
+        ex = advance(db, eid, status)
         assert ex.status == status.value
     data = client.get(f"/api/executions/{eid}").json()["data"]
     assert data["status"] == "completed"
@@ -101,13 +105,13 @@ def _path_to(target):
     """Valid sequence of transitions from `queued` up to and including `target` (non-terminal)."""
     if target is S.QUEUED:
         return []
-    full = BASE_PATH + TAIL_PATH if target in TAIL_PATH else BASE_PATH + [S.GENERATING_V3, S.EVALUATING_V3]
+    full = BASE_PATH + TAIL_PATH if target in TAIL_PATH else BASE_PATH + [S.CRITIQUING_V2, S.GENERATING_V3, S.EVALUATING_V3]
     return full[: full.index(target) + 1]
 
 
 def _walk_to(db, eid, target):
     for s in _path_to(target):
-        svc.transition_execution(db, eid, s)
+        advance(db, eid, s)
 
 
 INVALID_FROM_QUEUED = [s for s in S if s not in (S.GENERATING_V1, S.FAILED, S.CANCELLED, S.QUEUED)]
@@ -155,7 +159,7 @@ def test_terminal_states_reject_every_further_transition(client, make_execution,
         svc.fail_execution(db, eid, "TEST", "boom")
     else:
         for s in HAPPY_PATH:
-            svc.transition_execution(db, eid, s)
+            advance(db, eid, s)
     for target in S:
         kwargs = {"error_code": "X", "error_message": "y"} if target is S.FAILED else {}
         with pytest.raises(InvalidTransitionError):
@@ -251,10 +255,35 @@ def test_stale_transition_loses_the_race_and_changes_nothing(client, make_execut
 
 
 def test_transition_table_is_not_accidentally_widened():
-    # 14 forward edges (evaluating_v2 has three: generating_v3, zk_proof, completed_no_improvement;
-    # evaluating_v3 has two: zk_proof, completed_no_improvement) plus failed/cancelled from each of the
-    # 11 non-terminal states = 36 allowed transitions in total.
+    # 17 forward edges (evaluating_v2 has four: completed, critiquing_v2, zk_proof, completed_no_improvement;
+    # evaluating_v3 has three: completed, zk_proof, completed_no_improvement; every other non-terminal state
+    # has one) plus failed/cancelled from each of the 12 non-terminal states = 41 allowed transitions.
     fan_out = {s: len(allowed_transitions(s) - {S.FAILED, S.CANCELLED}) for s in NON_TERMINAL}
-    assert fan_out[S.EVALUATING_V2] == 3 and fan_out[S.EVALUATING_V3] == 2
+    assert fan_out[S.EVALUATING_V2] == 4 and fan_out[S.EVALUATING_V3] == 3
     assert all(v == 1 for k, v in fan_out.items() if k not in (S.EVALUATING_V2, S.EVALUATING_V3))
-    assert sum(len(allowed_transitions(s)) for s in S) == 36
+    assert sum(len(allowed_transitions(s)) for s in S) == 41
+
+
+# ---- Milestone 07B: completion decoupled from publishing; second critique ----------------------
+def test_completion_straight_from_evaluation_needs_a_verified_improvement(client, make_execution, db):
+    from tests.helpers import grant_improvement
+
+    eid = _new_execution(client, make_execution, db)
+    _walk_to(db, eid, S.EVALUATING_V2)
+    with pytest.raises(InvalidTransitionError, match="no best version"):
+        svc.transition_execution(db, eid, S.COMPLETED)
+    grant_improvement(db, eid)
+    ex = svc.transition_execution(db, eid, S.COMPLETED)
+    assert ex.status == "completed" and ex.completed_at is not None
+    assert [t.to_status for t in ex.transitions][-2:] == ["evaluating_v2", "completed"]  # no publishing states
+
+
+def test_the_second_critique_is_refused_after_an_accepted_revision(client, make_execution, db):
+    from tests.helpers import grant_improvement
+
+    eid = _new_execution(client, make_execution, db)
+    _walk_to(db, eid, S.EVALUATING_V2)
+    grant_improvement(db, eid)
+    with pytest.raises(InvalidTransitionError, match="already accepted"):
+        svc.transition_execution(db, eid, S.CRITIQUING_V2)
+    assert svc.get_execution(db, eid).status == "evaluating_v2"

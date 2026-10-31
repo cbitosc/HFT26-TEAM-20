@@ -4,6 +4,8 @@
 **Status:** Draft  
 **Date:** October 30, 2026
 
+> **Superseded in part.** The "Final PRD, Architecture and UI Workflow" is now the reference. Where they conflict, the PRD wins: the dashboard is a React web app (not Streamlit), tests are split into public and hidden suites, evidence is typed (four statuses), and acceptance uses `S_new >= S_old + delta` with delta = 1.0. See `docs/PRD_ALIGNMENT.md` and `docs/EVALUATION_ENGINE.md`. The rest of this document is kept for the parts the PRD does not change.
+
 ---
 
 ## 1. Project Overview
@@ -175,6 +177,8 @@ total_score = (test_pass_rate * 0.5) + (correctness * 0.3) + (code_quality * 0.2
 
 **Note:** Same evaluation procedure applies to V1, V2, and V3.
 
+**As implemented (see `docs/EVALUATION_ENGINE.md`):** the test pass rate is computed from the **hidden** tests only; correctness is 5 interface-contract checks; code quality is 5 structural AST checks (complexity is one of them; there is no lint score, because no linter is installed).
+
 #### Version History & Comparison
 
 | Feature | Description |
@@ -240,7 +244,7 @@ Output:
 | `zk_proofs` | id, execution_id, proof_json, public_signals, verified |
 | `memory` | id, task_type, knowledge_blob, created_at |
 
-> **Status:** the table above is the original planned schema. The implemented schema (Milestone 05) lives in `backend/app/models` and differs: tables `tasks`, `executions`, `execution_transitions`, `versions`, `evaluations`, `evaluation_operational_metrics`, `critic_feedback` and `agent_memories`. `zk_proofs`, IPFS CID and transaction columns are **not yet implemented**.
+> **Status:** the table above is the original planned schema. The implemented schema (Milestone 05) lives in `backend/app/models` and differs: tables `tasks`, `executions` (with the commitment), `execution_transitions`, `versions`, `evaluations` (with provenance), `evaluation_operational_metrics`, `evidence_records`, `invalid_comparisons`, `critic_feedback` and `agent_memories`. `zk_proofs`, IPFS CID and transaction columns are **not yet implemented**.
 
 ### 3.3 Data Flow
 
@@ -665,10 +669,11 @@ CBIT/
 │   ├── app/
 │   │   ├── main.py, config.py, database.py, init_db.py
 │   │   ├── lifecycle.py, scoring.py, errors.py
-│   │   ├── models/      (task, execution, version, evaluation, critic_feedback, agent_memory)
+│   │   ├── evaluation/  (suites, runner, engine, quality, provenance, policy, gate)
+│   │   ├── models/      (task, execution, version, evaluation, evidence, critic_feedback, agent_memory)
 │   │   ├── schemas/
-│   │   ├── services/    (task, execution, version)         [planned: orchestrator, generator, critic,
-│   │   │                                                     evaluator, zk, ipfs, blockchain, memory]
+│   │   ├── services/    (task, execution, version, evaluation, acceptance)
+│   │   │                                          [planned: orchestrator, generator, critic, zk, ipfs, blockchain, memory]
 │   │   └── api/routes/  (health, tasks, executions, versions)  [planned: zk_proofs, ipfs, blockchain]
 │   ├── tests/
 │   ├── requirements.txt, pytest.ini, .env.example, README.md
@@ -768,11 +773,12 @@ DATABASE_URL=sqlite:///./autoevolve.db
 |---|------|--------|
 | 1 | Environment setup | Done for the backend (`backend/.venv`) and the ZK prototype (`zk/`). Foundry is not installed |
 | 2 | Database initialisation | Done: tables are created at startup; no migration tool |
-| 3 | FastAPI scaffold | Foundation done: health, tasks, executions (with lifecycle), read endpoints for versions, evaluations and Critic feedback |
-| 4 | Agent integration (Featherless) | **Not implemented.** Only research harnesses in `eval/` call the API |
+| 3 | FastAPI scaffold | Foundation done: health, tasks, executions (with lifecycle and commitment), read endpoints for versions, evaluations, evidence and Critic feedback |
+| 3a | Evaluation engine and acceptance policy | Done (PRD milestones 1 and 2): public/hidden suites, subprocess evaluator (not a sandbox), provenance, four evidence statuses, delta = 1.0, proof-stage guard. See `docs/EVALUATION_ENGINE.md` |
+| 4 | Agent integration (Featherless) | Implemented (Milestone 07B): Featherless client, Generator, Critic, orchestrator, `POST /api/executions/{id}/run`. Tested with a scripted fake LLM; `eval/live_smoke.py` is the env-gated live check |
 | 5 | ZK circuit | Implemented as a standalone prototype with a development-only trusted setup. **Not integrated** into the backend |
 | 6 | Smart contract deployment | Not implemented |
-| 7 | Dashboard | Not implemented |
+| 7 | Dashboard | Not implemented (React web app per the PRD) |
 | 8 | Integration testing | Not implemented (backend and ZK have their own test suites) |
 
 ---

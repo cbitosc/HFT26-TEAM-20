@@ -26,3 +26,77 @@ class ConflictError(AppError):
 
 class InvalidTransitionError(ConflictError):
     code = "INVALID_TRANSITION"
+
+
+class ForbiddenError(AppError):
+    status_code = 403
+    code = "FORBIDDEN"
+
+
+class EvaluationExecutionDisabledError(ForbiddenError):
+    """Candidate code execution is switched off for this deployment."""
+
+    code = "EVALUATION_EXECUTION_DISABLED"
+
+
+class EvaluationSuiteUnavailableError(ConflictError):
+    """The task has no usable trusted evaluation suite (missing, unknown or empty)."""
+
+    code = "EVALUATION_SUITE_UNAVAILABLE"
+
+
+class EvaluationRequiredError(ConflictError):
+    """A decision needs a complete evaluation that does not exist (yet). Nothing is recorded."""
+
+    code = "EVALUATION_REQUIRED"
+
+
+class EvaluationNotComparableError(ConflictError):
+    """Two evaluations used a different suite or evaluator version, so they cannot be compared."""
+
+    code = "EVALUATION_NOT_COMPARABLE"
+
+
+class ExecutionMismatchError(ConflictError):
+    code = "EXECUTION_MISMATCH"
+
+
+class CodeHashMismatchError(ConflictError):
+    """Stored code no longer matches its recorded SHA-256 (or the hash an evaluation recorded)."""
+
+    code = "CODE_HASH_MISMATCH"
+
+
+class EvidenceNotExportableError(ConflictError):
+    """Only validated_improvement and rejected_attempt records can be exported as bundles."""
+
+    code = "EVIDENCE_NOT_EXPORTABLE"
+
+
+class RunAlreadyStartedError(ConflictError):
+    """A run was already claimed for this execution (by this or an earlier server process)."""
+
+    code = "RUN_ALREADY_STARTED"
+
+
+class LLMBudgetExceededError(AppError):
+    """The per-execution cap on LLM calls or tokens was reached. Fails the run with a partial record."""
+
+    status_code = 500
+
+    def __init__(self, code: str, message: str):
+        self.code = code
+        super().__init__(message)
+
+
+class LLMNotConfiguredError(AppError):
+    """A run needs the Featherless API key, and none is configured."""
+
+    status_code = 503
+    code = "LLM_NOT_CONFIGURED"
+
+
+class BaselineRequiredError(ConflictError):
+    """A revision cannot be judged before the baseline (V1) has been accepted."""
+
+    code = "BASELINE_REQUIRED"

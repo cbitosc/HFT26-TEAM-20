@@ -129,11 +129,21 @@ Sections 4, 5 and 9 below describe the *intended* demonstration. This table says
 | FastAPI + SQLite backend foundation (tasks, executions, validated lifecycle, versions, evaluations, Critic feedback storage, health check) | **Implemented** (`backend/`) |
 | ZK improvement proof (Circom circuit, Groth16 proof and verification, 10 test cases, tampering test) | **Implemented as a standalone prototype** (`zk/`); development-only trusted setup; not called by the backend |
 | Featherless model comparison and Critic validation harnesses | **Research tooling** (`eval/`); not part of the application |
-| Generator and Critic agents, orchestration, revision acceptance engine | Not yet implemented |
-| Evaluation execution engine (running candidate code against tests) | Not yet implemented |
-| Backend integration of ZK proofs, IPFS (Pinata), Sepolia registry | Not yet implemented |
+| Deterministic evaluator (public and hidden tests, subprocess execution) and strict acceptance policy, delta = 1.0 | **Implemented** (`backend/app/evaluation/`; see `docs/EVALUATION_ENGINE.md`). The subprocess is **not a security sandbox** |
+| Provenance hashes on every evaluation (suite, public/hidden suite, evaluator configuration, scoring-rule version) | **Implemented** |
+| Commitment recorded at execution creation, before any version (suite hashes, evaluator config hash, scoring rule, delta) | **Implemented** in SQLite. On-chain (Sepolia) copy: not yet implemented |
+| Four evidence statuses (`validated_improvement`, `rejected_attempt`, `invalid_comparison`, `unvalidated_proposal`) | **Implemented** (`GET /api/executions/{id}/evidence`) |
+| Code-hash binding (`code_sha256` on versions and evaluations; gate precondition `same_code_hash_as_evaluated`) | **Implemented** |
+| Local evidence bundles (canonical JSON + SHA-256, hidden-safe, rejected attempts as negative evidence, immutable) | **Implemented** (`POST/GET /api/evidence/{record_id}/bundle`); local only, nothing uploaded |
+| Run concurrency and limits: one run per execution (compare-and-swap claim, `RUN_ALREADY_STARTED`), per-step database sessions, no auto-resume after a restart (`stalled`), per-execution caps of 6 LLM calls and 40,000 tokens | **Implemented** |
+| Featherless client (temperature 0, pinned model, retry/backoff), Generator, Critic, orchestrator (`POST /api/executions/{id}/run`, V1 → final state) | **Implemented** (`backend/app/llm`, `backend/app/agents`, `backend/app/services/orchestrator.py`). Tested with a scripted fake LLM only; no live run has been made in this milestone (`eval/live_smoke.py` exists, env-gated) |
+| Lifecycle: completion decoupled from publishing; second critique (`critiquing_v2`) before V3 | **Implemented** |
+| Backend integration of ZK proofs, IPFS (Pinata), egress gate, Sepolia registry and on-chain commitment | Not yet implemented |
+| Lesson validator, Agent B transfer test, capabilities | Not yet implemented |
 | Solidity contracts and Foundry deployment | Not yet implemented |
-| Streamlit dashboard | Not yet implemented |
+| Web dashboard (React, per the PRD; replaces the earlier Streamlit plan) | Not yet implemented |
+
+The PRD ("Final PRD, Architecture and UI Workflow") is now the reference. `docs/PRD_ALIGNMENT.md` records the decisions on its open questions and audits each requirement against this repository.
 | Cross-agent memory retrieval | Not yet implemented (only a minimal storage table exists) |
 
 ---
@@ -320,20 +330,25 @@ All paths are under `/api`. Full request and response schemas are in `docs/API_C
 | `/api/health` | GET | Backend and database status |
 | `/api/tasks` | POST, GET | Create a task; list tasks |
 | `/api/tasks/{task_id}` | GET | Get a task |
-| `/api/tasks/{task_id}/executions` | POST | Create a queued execution (nothing runs it yet) |
+| `/api/tasks/{task_id}/executions` | POST | Create a queued execution and record its commitment (suite hashes, evaluator config, scoring rule, delta); nothing runs it yet |
 | `/api/executions` | GET | List executions |
-| `/api/executions/{execution_id}` | GET | Execution details and status history |
+| `/api/executions/{execution_id}` | GET | Execution details, status history and commitment |
+| `/api/executions/{execution_id}/run` | POST | Start the orchestrator for a queued execution (202, background; empty body) |
 | `/api/executions/{execution_id}/cancel` | POST | Cancel a non-terminal execution |
 | `/api/executions/{execution_id}/versions` | GET | List versions of an execution |
+| `/api/executions/{execution_id}/evidence` | GET | Typed evidence, invalid comparisons, Critic proposal count |
 | `/api/versions/{version_id}` | GET | Get a version |
-| `/api/versions/{version_id}/evaluations` | GET | Evaluation history of a version |
+| `/api/versions/{version_id}/evaluations` | GET | Evaluation history of a version (hidden tests as counts only) |
+| `/api/versions/{version_id}/evaluate` | POST | Run the backend evaluator on the stored code (empty body) |
+| `/api/versions/{version_id}/acceptance-decision` | POST | Apply the acceptance policy to persisted evaluations (empty body) |
 | `/api/versions/{version_id}/critic-feedback` | GET | Stored Critic feedback of a version |
+| `/api/evidence/{record_id}/bundle` | POST, GET | Build (idempotent) or read a local, hash-addressed evidence bundle (empty body) |
 
-There is deliberately no endpoint for clients to submit evaluation scores, accept or reject a version, or claim an improvement.
+There is deliberately no endpoint for clients to submit evaluation scores, force an acceptance, or claim an improvement. Clients can only ask the backend to evaluate or to apply the policy; any field in those request bodies is rejected.
 
 ### 8.2 Planned endpoints (not implemented)
 
-ZK proof generation and verification, IPFS publication and retrieval, blockchain registration, cross-agent memory retrieval and storage, and any endpoint that runs the Generator, Critic or Evaluator.
+ZK proof generation and verification, IPFS publication and retrieval, egress gate, blockchain registration, lesson replay, Agent B attestations, capabilities, cross-agent memory retrieval and storage.
 
 ---
 

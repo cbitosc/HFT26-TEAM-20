@@ -3,6 +3,8 @@
 **Version:** 1.0  
 **Date:** October 30, 2026
 
+> **Superseded.** The PRD specifies a **React web app** with seven screens: Home, New Task, Run View, Compare View, Capabilities, Memory and Trust, Verification. Use the PRD's Section 10 for the workflow. This Streamlit design is kept only for its page content. Rules that still apply: the dashboard calls FastAPI over HTTP only; it shows hidden tests as aggregate counts and never their names, contents or per-test results; it shows the exact failed term of a rejected revision; and it labels any sample data `SAMPLE DATA`. The backend fields it needs are in `docs/API_CONTRACT.md` (`/evaluations`, `/acceptance-decision`, `/evidence`). No dashboard exists yet.
+
 ---
 
 ## 1. Overview

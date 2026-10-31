@@ -20,12 +20,13 @@ from app.schemas.evaluation import EvaluationInput
 from app.services import execution_service as exe
 from app.services import version_service as ver
 from sqlalchemy import select
+from tests.helpers import advance
 
 NI = S.COMPLETED_NO_IMPROVEMENT
 CODE = "def merge_intervals(x):\n    return x\n"
 
 TO_E2 = [S.GENERATING_V1, S.EVALUATING_V1, S.CRITIQUING, S.GENERATING_V2, S.EVALUATING_V2]
-TO_E3 = TO_E2 + [S.GENERATING_V3, S.EVALUATING_V3]
+TO_E3 = TO_E2 + [S.CRITIQUING_V2, S.GENERATING_V3, S.EVALUATING_V3]
 
 
 def _evaluation(**kw):
@@ -44,7 +45,7 @@ def new_execution(db, task_id, max_revisions=2):
 
 def walk(db, eid, path):
     for status in path:
-        exe.transition_execution(db, eid, status)
+        advance(db, eid, status)
 
 
 def record_revisions(db, eid, count, *, decision="rejected", evaluate=True):
@@ -175,6 +176,8 @@ def test_a_third_version_is_refused_when_only_one_revision_is_permitted(client, 
     eid = new_execution(db, task_id, max_revisions=1)
     walk(db, eid, TO_E2)
     with pytest.raises(InvalidTransitionError, match="not permitted"):
+        exe.transition_execution(db, eid, S.CRITIQUING_V2)
+    with pytest.raises(InvalidTransitionError):  # V3 is only reachable through the second critique
         exe.transition_execution(db, eid, S.GENERATING_V3)
 
 
@@ -386,9 +389,8 @@ def test_a_normal_improvement_path_still_works_without_the_new_state(client, db,
     """An accepted revision proceeds to zk_proof exactly as before."""
     eid = new_execution(db, task_id, max_revisions=1)
     walk(db, eid, TO_E2)
-    record_revisions(db, eid, 1, decision="accepted")
     for status in (S.ZK_PROOF, S.IPFS_PUBLISH, S.BLOCKCHAIN_REGISTER, S.COMPLETED):
-        exe.transition_execution(db, eid, status)
+        advance(db, eid, status)
     assert exe.get_execution(db, eid).status == "completed"
 
 

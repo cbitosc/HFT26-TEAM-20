@@ -1,11 +1,13 @@
 """FastAPI application factory."""
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from app import __version__
 from app.api.error_handlers import register_exception_handlers
-from app.api.routes import executions, health, tasks, versions
+from app.api.routes import evidence, executions, health, runs, tasks, versions
+from app.llm.client import make_featherless_client
 from app.config import Settings, get_settings
 from app.database import create_db_engine, init_db, make_session_factory
 
@@ -28,14 +30,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="AutoEvolve Protocol API",
         version=__version__,
         description=(
-            "Backend foundation: tasks, executions with a validated lifecycle, versions, "
-            "evaluations and Critic feedback storage. No AI, ZK, IPFS or blockchain integration yet."
+            "Tasks, executions with a validated lifecycle, a deterministic evaluator, an evaluator-led "
+            "acceptance gate with typed evidence, local evidence bundles, and an orchestrator that drives "
+            "the Featherless Generator and Critic. No LLM scores or approves anything. No ZK, IPFS or "
+            "blockchain integration yet."
         ),
         lifespan=lifespan,
     )
     app.state.settings = settings
+    # Identifies this server process. A run claimed under a different id belongs to an earlier process
+    # (the server restarted): it is reported as `stalled` and never resumed automatically.
+    app.state.instance_id = uuid.uuid4().hex
+    # How a run obtains its LLM client. Tests replace this with a scripted fake (no network).
+    app.state.llm_client_factory = make_featherless_client
     register_exception_handlers(app)
-    for router in (health.router, tasks.router, executions.router, versions.router):
+    for router in (health.router, tasks.router, executions.router, runs.router, versions.router, evidence.router):
         app.include_router(router, prefix="/api")
     return app
 

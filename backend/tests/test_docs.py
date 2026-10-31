@@ -168,3 +168,73 @@ def test_docs_do_not_claim_clients_can_submit_scores_or_decisions():
     assert "no** endpoint for clients to create or modify versions, evaluations" in api
     readme = read(ROOT / "README.md")
     assert "no endpoint for clients to submit evaluation scores" in readme
+
+
+# ---- evaluation engine and acceptance policy (Milestone 06 / PRD alignment) -------------------
+def test_evaluation_doc_states_the_security_limitation_and_the_trust_limits():
+    text = read(ROOT / "docs" / "EVALUATION_ENGINE.md")
+    assert "NOT a security sandbox" in text
+    for statement in ("A weak suite can approve buggy code", "The evaluator is trusted", "advisory",
+                      "bound to the SHA-256 of the exact code", "does not show that the evaluator ran honestly",
+                      "proves only `score_v2 >= score_v1 + delta`"):
+        assert statement in text, statement
+
+
+def test_documented_delta_rule_version_and_terms_match_the_code():
+    from app.evaluation import policy
+
+    text = read(ROOT / "docs" / "EVALUATION_ENGINE.md")
+    assert f"Delta = {policy.DELTA}" in text and f"rule version {policy.SCORING_RULE_VERSION}" in text
+    api = read(ROOT / "docs" / "API_CONTRACT.md")
+    for term in (*policy.PRECONDITIONS, *policy.PREDICATE_TERMS):
+        assert f"`{term}`" in text and f"`{term}`" in api, term
+    for status in ("validated_improvement", "rejected_attempt", "invalid_comparison", "unvalidated_proposal"):
+        assert status in text and status in api
+
+
+def test_every_api_route_is_documented_in_the_contract():
+    from app.main import create_app
+    from app.config import Settings
+
+    app = create_app(Settings(_env_file=None, app_env="test", database_url="sqlite:///:memory:"))
+    api = read(ROOT / "docs" / "API_CONTRACT.md")
+    routes = {r.path for r in app.routes if getattr(r, "path", "").startswith("/api/")}
+    missing = sorted(p for p in routes if f"`{p}`" not in api and f"{p}`" not in api)
+    assert missing == [], missing
+
+
+def test_docs_say_hidden_tests_are_never_revealed_and_the_dashboard_is_react():
+    api = read(ROOT / "docs" / "API_CONTRACT.md")
+    assert "Hidden tests are never revealed" in api
+    assert "React" in read(ROOT / "AGENTS.md") and "React" in read(ROOT / "docs" / "PRD_ALIGNMENT.md")
+    assert "Superseded" in read(ROOT / "docs" / "DASHBOARD_SPEC.md")
+
+
+def test_new_settings_are_in_the_env_example():
+    example = read(BACKEND_DIR / ".env.example")
+    for name in ("EVALUATION_TIMEOUT_SECONDS", "EVALUATION_TOTAL_TIMEOUT_SECONDS", "ALLOW_UNSANDBOXED_EVALUATION"):
+        assert name in example
+
+
+def test_bundle_docs_state_what_is_never_exported_and_that_nothing_is_uploaded():
+    api = read(ROOT / "docs" / "API_CONTRACT.md")
+    engine = read(ROOT / "docs" / "EVALUATION_ENGINE.md")
+    assert "Never in a bundle:" in api and "local only" in api
+    assert "Nothing is uploaded" in engine and "counts only" in engine
+    for code in ("CODE_HASH_MISMATCH", "EVIDENCE_NOT_EXPORTABLE", "EVIDENCE_BUNDLE_NOT_FOUND"):
+        assert code in api, code
+
+
+def test_run_concurrency_restart_and_budget_rules_are_documented_and_match_the_code():
+    from app.config import Settings
+
+    api = read(ROOT / "docs" / "API_CONTRACT.md")
+    for text in ("RUN_ALREADY_STARTED", "not resumed automatically", '"stalled": true', "LLM_CALL_BUDGET_EXCEEDED",
+                 "LLM_TOKEN_BUDGET_EXCEEDED", "compare-and-swap", "its own database session for every step"):
+        assert text in api, text
+    defaults = Settings(_env_file=None)
+    assert f"default {defaults.llm_max_calls_per_execution}" in api
+    assert f"default {defaults.llm_max_total_tokens_per_execution:,}" in api
+    example = read(BACKEND_DIR / ".env.example")
+    assert "LLM_MAX_CALLS_PER_EXECUTION" in example and "LLM_MAX_TOTAL_TOKENS_PER_EXECUTION" in example
+    assert "not resumed" in read(ROOT / "docs" / "ARCHITECTURE.md")

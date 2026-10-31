@@ -19,8 +19,8 @@ from sqlalchemy import select
 
 INSERT = (
     "INSERT INTO evaluations (id, version_id, tests_passed, tests_total, test_pass_rate, "
-    "correctness_score, code_quality_score, overall_score, failure_details, created_at) "
-    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', '2026-10-30 12:00:00')"
+    "correctness_score, code_quality_score, overall_score, failure_details, code_sha256, created_at) "
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', '" + "a" * 64 + "', '2026-10-30 12:00:00')"
 )
 
 

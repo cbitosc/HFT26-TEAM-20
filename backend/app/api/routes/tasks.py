@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from app.api.deps import DbSession, Limit, Offset
 from app.schemas.common import Envelope, Page, ok
@@ -26,6 +26,9 @@ def get_task(task_id: str, db: DbSession):
 
 
 @router.post("/{task_id}/executions", status_code=201, response_model=Envelope[ExecutionRead])
-def create_execution(task_id: str, db: DbSession):
-    """Creates a queued execution. Nothing runs: no worker or pipeline exists yet."""
-    return ok(ExecutionRead.from_model(execution_service.create_execution(db, task_id)))
+def create_execution(task_id: str, request: Request, db: DbSession):
+    """Creates a queued execution and records its commitment (suite hashes, evaluator configuration,
+    scoring rule, delta) before anything is generated. Nothing runs: no worker or pipeline exists yet.
+    Refused with 409 EVALUATION_SUITE_UNAVAILABLE when the task has no evaluation suite."""
+    return ok(ExecutionRead.from_model(
+        execution_service.create_execution(db, task_id, settings=request.app.state.settings)))

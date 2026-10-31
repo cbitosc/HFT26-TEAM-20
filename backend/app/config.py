@@ -36,8 +36,34 @@ class Settings(BaseSettings):
     # No Critic model is approved, so there is deliberately no default.
     featherless_critic_model: str | None = None
     api_timeout_seconds: float = Field(default=60.0, gt=0, le=600)
+    # Per-execution caps. Exceeding either fails the run (LLM_CALL_BUDGET_EXCEEDED / LLM_TOKEN_BUDGET_EXCEEDED)
+    # and keeps everything recorded so far. A normal run makes at most 5 calls.
+    llm_max_calls_per_execution: int = Field(default=6, ge=1, le=50)
+    llm_max_total_tokens_per_execution: int = Field(default=40_000, ge=1000, le=1_000_000)
+    # LLM calls (Generator and Critic). Temperature is fixed at 0 in code, not configurable.
+    llm_max_retries: int = Field(default=2, ge=0, le=5)  # extra attempts after the first
+    llm_backoff_seconds: float = Field(default=1.0, ge=0, le=30)  # doubles each retry
+    llm_max_tokens: int = Field(default=2048, ge=64, le=8192)
+    generator_max_code_chars: int = Field(default=20_000, ge=100, le=200_000)
 
-    @field_validator("featherless_api_key", "featherless_critic_model", mode="before")
+    # Candidate-code evaluation (see docs/EVALUATION_ENGINE.md). Running candidate code in a
+    # subprocess is NOT a security sandbox.
+    evaluation_timeout_seconds: float = Field(default=10.0, gt=0, le=120)  # one interpreter run
+    evaluation_total_timeout_seconds: float = Field(default=60.0, gt=0, le=600)  # whole evaluation
+    # None = decide from app_env: allowed in development/test, refused in production unless set true.
+    allow_unsandboxed_evaluation: bool | None = None
+
+    @property
+    def llm_configured(self) -> bool:
+        return self.featherless_api_key is not None and bool(self.featherless_api_key.get_secret_value().strip())
+
+    @property
+    def evaluation_execution_allowed(self) -> bool:
+        if self.allow_unsandboxed_evaluation is not None:
+            return self.allow_unsandboxed_evaluation
+        return self.app_env != "production"
+
+    @field_validator("featherless_api_key", "featherless_critic_model", "allow_unsandboxed_evaluation", mode="before")
     @classmethod
     def _blank_is_none(cls, value):
         if isinstance(value, str) and not value.strip():

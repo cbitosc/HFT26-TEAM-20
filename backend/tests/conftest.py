@@ -10,8 +10,24 @@ from app.main import create_app
 def _isolate_environment(monkeypatch):
     """Tests must not depend on a developer's shell (a real FEATHERLESS_API_KEY, DATABASE_URL, ...)."""
     for name in ("APP_ENV", "DATABASE_URL", "FEATHERLESS_API_KEY", "FEATHERLESS_BASE_URL",
-                 "FEATHERLESS_GENERATOR_MODEL", "FEATHERLESS_CRITIC_MODEL", "API_TIMEOUT_SECONDS"):
+                 "FEATHERLESS_GENERATOR_MODEL", "FEATHERLESS_CRITIC_MODEL", "API_TIMEOUT_SECONDS",
+                 "EVALUATION_TIMEOUT_SECONDS", "EVALUATION_TOTAL_TIMEOUT_SECONDS", "ALLOW_UNSANDBOXED_EVALUATION",
+                 "LLM_MAX_RETRIES", "LLM_BACKOFF_SECONDS", "LLM_MAX_TOKENS", "GENERATOR_MAX_CODE_CHARS",
+                 "LLM_MAX_CALLS_PER_EXECUTION", "LLM_MAX_TOTAL_TOKENS_PER_EXECUTION"):
         monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _no_hidden_test_data_in_any_bundle(tmp_path):
+    """After EVERY test, scan every evidence bundle that test wrote for hidden test ids, names and
+    inputs. Candidate source (`code`, `diff`) is generator output, not suite data, and is skipped."""
+    yield
+    from tests.bundle_scan import scan_database
+
+    database = tmp_path / "test.db"
+    if database.exists():
+        leaks = scan_database(database)
+        assert leaks == [], f"hidden test data found in evidence bundles: {leaks}"
 
 
 @pytest.fixture
@@ -49,6 +65,8 @@ def task_payload():
         "requirements": ["Merge overlapping intervals", "Do not mutate the input"],
         "language": "python",
         "category": "algorithms",
+        # A run can only start for a task with public + hidden tests (PRD Step 1).
+        "evaluation_suite_id": "python-merge-intervals-v1",
     }
 
 

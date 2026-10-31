@@ -1,6 +1,6 @@
 """Critic feedback schemas. Advisory only; never an evaluation result."""
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -31,3 +31,5 @@ class CriticFeedbackRead(BaseModel):
     suggested_changes: list[Any] | None
     confidence: float | None
     created_at: datetime
+    # PRD evidence class: a Critic suggestion with no evaluation decision. Never evidence, never shared.
+    evidence_status: Literal["unvalidated_proposal"] = "unvalidated_proposal"

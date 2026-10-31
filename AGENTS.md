@@ -18,7 +18,7 @@
 
 | Layer | Allowed Access |
 |-------|---------------|
-| **Dashboard (Streamlit)** | FastAPI HTTP calls only |
+| **Dashboard (React web app, per the PRD; replaces the earlier Streamlit plan)** | FastAPI HTTP calls only |
 | **FastAPI Backend** | SQLite, AI API, IPFS, Blockchain |
 | **Services** | Their specific external integrations only |
 

@@ -7,8 +7,13 @@ only after they have really done the work.
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
+from app.config import Settings
 from app.database import utcnow
-from app.errors import ConflictError, InvalidTransitionError, NotFoundError
+from app.errors import ConflictError, EvaluationSuiteUnavailableError, InvalidTransitionError, NotFoundError
+from app.evaluation import policy
+from app.evaluation.execution import RunLimits
+from app.evaluation.provenance import evaluator_config_hash
+from app.evaluation.suites import get_suite
 from app.lifecycle import (
     DEFAULT_MAX_REVISIONS,
     MAX_REVISIONS,
@@ -32,14 +37,32 @@ def get_execution(session: Session, execution_id: str) -> Execution:
 
 
 def create_execution(
-    session: Session, task_id: str, *, max_revisions: int = DEFAULT_MAX_REVISIONS
+    session: Session,
+    task_id: str,
+    *,
+    max_revisions: int = DEFAULT_MAX_REVISIONS,
+    settings: Settings | None = None,
 ) -> Execution:
     """`max_revisions` is how many revision attempts (V2, V3) the execution is permitted. It is
-    chosen by backend code, not by API clients."""
+    chosen by backend code, not by API clients.
+
+    The commitment (suite hashes, evaluator configuration hash, scoring-rule version, delta) is
+    recorded here, before any version exists. If it cannot be recorded, the execution is not created
+    (PRD: "Hash recording fails: the run does not start"). `settings` supplies the evaluator time
+    limits; None means the defaults, which the evaluator then must also use."""
     if not MIN_REVISIONS <= max_revisions <= MAX_REVISIONS:
         raise ValueError(f"max_revisions must be between {MIN_REVISIONS} and {MAX_REVISIONS}")
-    if session.get(Task, task_id) is None:
+    task = session.get(Task, task_id)
+    if task is None:
         raise NotFoundError("task", task_id)
+    suite = get_suite(task.evaluation_suite_id)
+    if suite is None:
+        raise EvaluationSuiteUnavailableError(
+            "This task has no available evaluation suite (public and hidden tests), so a run cannot start."
+        )
+    from app.services.evaluation_service import limits_from  # lazy: avoids an import cycle
+
+    limits = limits_from(settings) if settings is not None else RunLimits()
     now = utcnow()
     execution = Execution(
         task_id=task_id,
@@ -47,6 +70,14 @@ def create_execution(
         max_revisions=max_revisions,
         created_at=now,
         updated_at=now,
+        suite_id=suite.id,
+        suite_hash=suite.suite_hash,
+        public_suite_hash=suite.public_suite_hash,
+        hidden_suite_hash=suite.hidden_suite_hash,
+        evaluator_config_hash=evaluator_config_hash(limits),
+        scoring_rule_version=policy.SCORING_RULE_VERSION,
+        delta=policy.DELTA,
+        committed_at=now,
     )
     session.add(execution)
     session.flush()
@@ -107,10 +138,21 @@ def transition_execution(
     current = ExecutionStatus(execution.status)
     if target not in allowed_transitions(current):
         raise InvalidTransitionError(f"Cannot move an execution from '{current.value}' to '{target.value}'.")
-    if target is ExecutionStatus.GENERATING_V3 and execution.max_revisions < 2:
+    if target in (ExecutionStatus.CRITIQUING_V2, ExecutionStatus.GENERATING_V3) and execution.max_revisions < 2:
         raise InvalidTransitionError("A third version is not permitted for this execution (max_revisions=1).")
+    if target is ExecutionStatus.CRITIQUING_V2:
+        _require_no_accepted_revision(session, execution)
     if target is ExecutionStatus.COMPLETED_NO_IMPROVEMENT:
         _require_revisions_exhausted_without_improvement(session, execution, current)
+    # Entering the proof stage, or completing straight from an evaluation state, both require a
+    # verified accepted improvement. (blockchain_register -> completed was already guarded at zk_proof.)
+    if target is ExecutionStatus.ZK_PROOF or (
+        target is ExecutionStatus.COMPLETED
+        and current in (ExecutionStatus.EVALUATING_V2, ExecutionStatus.EVALUATING_V3)
+    ):
+        from app.services import acceptance_service  # lazy: avoids an import cycle
+
+        acceptance_service.require_verified_improvement(session, execution)
 
     now = utcnow()
     values: dict = {"status": target.value, "updated_at": now}
@@ -140,6 +182,18 @@ def transition_execution(
     commit_or_rollback(session)
     session.refresh(execution)
     return execution
+
+
+def _require_no_accepted_revision(session: Session, execution: Execution) -> None:
+    """A second critique (towards V3) only makes sense if no revision was accepted: an accepted
+    revision means the run stops and completes."""
+    accepted = session.scalar(
+        select(func.count()).select_from(Version).where(
+            Version.execution_id == execution.id, Version.sequence >= 2,
+            Version.acceptance_status == AcceptanceStatus.ACCEPTED.value)
+    )
+    if accepted:
+        raise InvalidTransitionError("A revision was already accepted; the run must complete instead of revising again.")
 
 
 def _require_revisions_exhausted_without_improvement(

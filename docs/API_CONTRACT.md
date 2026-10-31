@@ -44,8 +44,18 @@ Every response, including errors, has the same shape.
 | 404 | `TASK_NOT_FOUND`, `EXECUTION_NOT_FOUND`, `VERSION_NOT_FOUND` | The record does not exist |
 | 404 | `NOT_FOUND` | Unknown route |
 | 405 | `METHOD_NOT_ALLOWED` | Method not supported (for example any attempt to write a version or evaluation) |
+| 403 | `EVALUATION_EXECUTION_DISABLED` | Running candidate code is switched off (default in `production`) |
 | 409 | `INVALID_TRANSITION` | The lifecycle does not allow the requested state change |
-| 409 | `CONFLICT` | Concurrent change, or a database constraint was violated |
+| 409 | `CONFLICT` | Concurrent change, a final decision already exists, or a database constraint was violated |
+| 409 | `EVALUATION_SUITE_UNAVAILABLE` | The task has no evaluation suite, the suite is gone, or it no longer matches the committed hash |
+| 409 | `EVALUATION_REQUIRED` | The baseline (V1) has no complete evaluation yet |
+| 409 | `EVALUATION_NOT_COMPARABLE` | The baseline was evaluated under a suite, configuration or rule other than the committed one |
+| 409 | `BASELINE_REQUIRED` | A revision was submitted for a decision before V1 was accepted as the baseline |
+| 409 | `CODE_HASH_MISMATCH` | Stored code no longer matches its recorded SHA-256 (evaluation refused, baseline refused, bundle export refused) |
+| 409 | `EVIDENCE_NOT_EXPORTABLE` | A bundle was requested for an invalid comparison or a Critic proposal |
+| 404 | `EVIDENCE_RECORD_NOT_FOUND`, `EVIDENCE_BUNDLE_NOT_FOUND` | No such evidence record / no bundle built yet for it |
+| 503 | `LLM_NOT_CONFIGURED` | A run was requested but no Featherless API key is configured |
+| 409 | `RUN_ALREADY_STARTED` | A run was already claimed for this execution; also returned for a stalled one (it is not resumed) |
 | 422 | `VALIDATION_ERROR` | Invalid body, query parameter or filter value |
 | 500 | `INTERNAL_ERROR` | Unexpected error. The message is generic and no stack trace is returned |
 | 503 | `DATABASE_UNAVAILABLE` | Health check cannot reach the database |
@@ -91,6 +101,8 @@ Request (unknown fields, such as `status` or `id`, are rejected with 422):
 | `requirements` | string[] | optional, up to 50 items of 1 to 1,000 characters |
 | `language` | string or null | optional, up to 32 characters |
 | `category` | string or null | optional, up to 64 characters |
+| `evaluation_suite_id` | string or null | optional; must be the id of a suite registered in the backend (today only `python-merge-intervals-v1`), otherwise 422. A client can only **select** a suite, never define tests. A run cannot start without one |
+| `starter_code` | string or null | optional, up to 50,000 characters; shown to the Generator as its starting point |
 
 ```json
 {
@@ -98,7 +110,8 @@ Request (unknown fields, such as `status` or `id`, are rejected with 422):
   "description": "Implement merge_intervals(intervals).",
   "requirements": ["Merge overlapping intervals", "Do not mutate the input"],
   "language": "python",
-  "category": "algorithms"
+  "category": "algorithms",
+  "evaluation_suite_id": "python-merge-intervals-v1"
 }
 ```
 
@@ -112,6 +125,7 @@ Response `data` (`TaskRead`):
   "requirements": ["Merge overlapping intervals", "Do not mutate the input"],
   "language": "python",
   "category": "algorithms",
+  "evaluation_suite_id": "python-merge-intervals-v1",
   "status": "active",
   "created_at": "2026-10-30T12:00:00Z",
   "updated_at": "2026-10-30T12:00:00Z"
@@ -130,7 +144,7 @@ Returns `TaskRead`, or 404 `TASK_NOT_FOUND`.
 
 ### `POST /api/tasks/{task_id}/executions` (201)
 
-Creates an execution in status `queued`. No body. Nothing runs: no worker or pipeline exists yet, so the execution stays `queued` until a later milestone drives it. Returns 404 `TASK_NOT_FOUND` for an unknown task.
+Creates an execution in status `queued` and records its **commitment** before anything is generated: the suite id, the hashes of the whole suite, its public part and its hidden part, the evaluator configuration hash, the scoring-rule version and delta. No body. Nothing runs: no worker or pipeline exists yet, so the execution stays `queued` until a later milestone drives it. Returns 404 `TASK_NOT_FOUND` for an unknown task and 409 `EVALUATION_SUITE_UNAVAILABLE` when the task has no evaluation suite (no commitment can be recorded, so the run does not start). The commitment is stored in SQLite only; an on-chain copy is planned (`"onchain": "planned"`).
 
 Response `data` (`ExecutionRead`):
 
@@ -145,9 +159,22 @@ Response `data` (`ExecutionRead`):
   "started_at": null,
   "completed_at": null,
   "best_version_id": null,
-  "error": null
+  "error": null,
+  "commitment": {
+    "suite_id": "python-merge-intervals-v1",
+    "suite_hash": "<sha256>",
+    "public_suite_hash": "<sha256>",
+    "hidden_suite_hash": "<sha256>",
+    "evaluator_config_hash": "<sha256>",
+    "scoring_rule_version": "2",
+    "delta": 1.0,
+    "committed_at": "2026-10-30T12:00:01Z",
+    "onchain": "planned"
+  }
 }
 ```
+
+`commitment` is `null` only for rows created outside the service (it is never `null` for executions created through the API).
 
 ---
 
@@ -157,16 +184,31 @@ Response `data` (`ExecutionRead`):
 
 ```
 queued -> generating_v1 -> evaluating_v1 -> critiquing -> generating_v2 -> evaluating_v2
-       -> [generating_v3 -> evaluating_v3] -> zk_proof -> ipfs_publish -> blockchain_register -> completed
+evaluating_v2 -> completed                      (V2 accepted: stop on acceptance)
+evaluating_v2 -> completed_no_improvement       (V2 rejected and max_revisions = 1)
+evaluating_v2 -> critiquing_v2 -> generating_v3 -> evaluating_v3   (V2 rejected, a second revision permitted)
+evaluating_v3 -> completed | completed_no_improvement
+publishing (separate, not part of completion):
+evaluating_v2 | evaluating_v3 -> zk_proof -> ipfs_publish -> blockchain_register -> completed
 ```
 
-`failed` and `cancelled` are reachable from every non-terminal state. `completed`, `completed_no_improvement`, `failed` and `cancelled` are terminal and have no outgoing transitions. Clients can only trigger cancellation; every other transition is made by backend components. Today no component does so, so executions created through the API remain `queued` unless cancelled.
+`failed` and `cancelled` are reachable from every non-terminal state. `completed`, `completed_no_improvement`, `failed` and `cancelled` are terminal and have no outgoing transitions. Clients can trigger a run (`POST /api/executions/{id}/run`) and cancellation; every other transition is made by the orchestrator through the same guarded service. Nothing performs the publishing states yet.
 
-**`completed_no_improvement`** is a valid, finished run in which every permitted revision was evaluated and none was accepted as an improvement. It is not a failure and not a cancellation, and it never carries `error` information. It is reachable only from `evaluating_v2` (when the execution permits one revision) and from `evaluating_v3`. A backend component may enter it only when every permitted revision attempt is recorded, evaluated and rejected; entering it while another revision is still permitted, or while any revision was accepted, is refused. The revision engine that makes those accept/reject decisions is not implemented yet.
+**Milestone 07B lifecycle change.**
+
+- **Completion is decoupled from publishing.** `evaluating_v2` and `evaluating_v3` may move directly to `completed`, with the same guard as `zk_proof`: the best version is an accepted revision with a `validated_improvement` record, and the policy, re-applied, still holds.
+- **The publishing states remain reachable and guarded, but completion does not require them.** They will move to their own workflow in a later milestone.
+- **Second critique.** `critiquing_v2` is a second critique after a rejected V2, fed with V2's failed terms. The old direct edge `evaluating_v2 → generating_v3` is gone. `critiquing_v2` requires `max_revisions = 2` and that no revision was accepted, because an accepted V2 must complete.
+
+**`completed_no_improvement`** is a valid, finished run in which every permitted revision was evaluated and none was accepted as an improvement. It is not a failure and not a cancellation, and it never carries `error` information. It is reachable only from `evaluating_v2` (when the execution permits one revision) and from `evaluating_v3`. A backend component may enter it only when every permitted revision attempt is recorded, evaluated and rejected; entering it while another revision is still permitted, while any revision is undecided (including one that only produced an `invalid_comparison`), or while any revision was accepted, is refused. Decisions are made by the acceptance policy (section 5).
+
+**`zk_proof`** may be entered only when the best version is an accepted revision (not V1) with a `validated_improvement` evidence record, and when the policy, re-applied to the persisted evaluations of V1 and the best version against the execution's commitment, still holds. Stored flags alone are not trusted.
 
 Field rules:
 
-- `max_revisions` (1 or 2, default 2) is how many revision attempts (V2, V3) the execution permits. It is read-only: it is set by backend code, never by API clients. A third version (`generating_v3`) is refused when it is 1.
+- `max_revisions` (1 or 2, default 2) is how many revision attempts (V2, V3) the execution permits. It is read-only: it is set by backend code, never by API clients. `critiquing_v2` and `generating_v3` are refused when it is 1.
+- `error.code` values set by a run: `LLM_UNAVAILABLE` (provider down after retries), `LLM_REQUEST_REJECTED` (non-retryable HTTP error, for example 401), `LLM_BAD_RESPONSE`, `GENERATOR_OUTPUT_INVALID` (no fenced code block, empty or oversized), `LLM_CALL_BUDGET_EXCEEDED`, `LLM_TOKEN_BUDGET_EXCEEDED`, `INVALID_COMPARISON`, `CODE_HASH_MISMATCH`, `ORCHESTRATOR_ERROR`. Everything recorded before the failure is kept.
+- `run_claimed_at` is when a run was claimed (`null` if never). `stalled` is `true` only for a non-terminal execution whose run was claimed by an earlier server process (see `POST .../run`); it is never `true` for queued or finished executions.
 - `started_at` is set when the execution first leaves `queued` for `generating_v1`; it is `null` for executions cancelled or failed while still queued.
 - `completed_at` is set exactly when the status is terminal.
 - `error` is `{ "code", "message", "stage" }` exactly when the status is `failed` (`stage` is the status it failed from), otherwise `null`.
@@ -192,6 +234,41 @@ Returns `ExecutionRead` plus the status history, or 404 `EXECUTION_NOT_FOUND`:
 }
 ```
 
+### `POST /api/executions/{execution_id}/run` (202)
+
+Starts the orchestrator for a **queued** execution. The request atomically moves it `queued → generating_v1` (compare-and-swap) and returns `ExecutionRead` with status `generating_v1`. The run then continues in the background; read its progress through `GET /api/executions/{id}`, `/versions`, `/evidence` and `/api/versions/{id}/...`. Body: none, or `{}`; any field (scores, verdicts, code, model, budget) is a 422.
+
+Errors: 404 `EXECUTION_NOT_FOUND`; 409 `RUN_ALREADY_STARTED` if a run was ever claimed for this execution (by this or an earlier server process); 409 `INVALID_TRANSITION` if the execution is not queued and was never claimed; 503 `LLM_NOT_CONFIGURED` without `FEATHERLESS_API_KEY`; 403 `EVALUATION_EXECUTION_DISABLED`; 409 `EVALUATION_SUITE_UNAVAILABLE`. A refused start claims nothing, and the execution stays `queued`.
+
+**Concurrency.** Starting a run is a compare-and-swap on a "run claimed" marker (`run_claimed_at`, `run_claimed_by`): `UPDATE ... WHERE status = 'queued' AND run_claimed_at IS NULL`. Two simultaneous calls cannot start two runs; the loser gets 409 `RUN_ALREADY_STARTED` and nothing else happens. The background task opens its own database session for every step and never uses the request's session; no session or connection is open while a Generator or Critic call is in flight.
+
+**Restart behavior (no silent resume).** Runs live in the server process. If the server restarts, an execution that was running stays in its last non-terminal status and is **not resumed automatically**. `GET /api/executions` and `GET /api/executions/{id}` report it with `"stalled": true`: its run was claimed by an earlier server process and the execution is not finished. Asking to run it again returns 409 `RUN_ALREADY_STARTED`. To close it, cancel it (`POST .../cancel`); everything recorded so far is kept. A run that hangs inside a live server is not detected (there is no heartbeat yet).
+
+**Per-execution caps.** At most `LLM_MAX_CALLS_PER_EXECUTION` (default 6) Generator/Critic calls and `LLM_MAX_TOTAL_TOKENS_PER_EXECUTION` (default 40,000) tokens. Both are checked before every call, and the token total again right after each call. Exceeding either fails the run with `LLM_CALL_BUDGET_EXCEEDED` or `LLM_TOKEN_BUDGET_EXCEEDED` and keeps the partial record. A normal run makes at most 5 calls; retries inside one call do not count as extra calls.
+
+What a run does:
+
+1. The Generator writes V1. The evaluator scores it and it becomes the baseline.
+2. The Critic reviews V1. The Generator writes V2 from the best version, and V2 is evaluated and decided.
+3. If V2 is accepted, the run completes. If V2 is rejected and only one revision is permitted, it ends as `completed_no_improvement`.
+4. Otherwise the Critic reviews the rejected V2 with its failed terms (`critiquing_v2`). The Generator writes V3 from the best version, and V3 is evaluated and decided: accepted gives `completed`, rejected gives `completed_no_improvement`.
+
+Cancellation is checked between steps, and no LLM call is made inside a database transaction. **No LLM output is a score or a decision.**
+
+**What each model sees:**
+
+- **Generator:** the task (title, description, requirements, language, starter code), the entry point, and the **public** tests. For a revision it also sees the best version's code, its **public** failures, the Critic's validated suggestion and lesson, and, after a rejected attempt, the failed term **ids**.
+- **Critic:** the candidate's code, **public** failures, hidden results as **two counts**, and, after a rejection, the gate's failed terms. Those messages name public tests and only count hidden ones.
+- Neither ever receives hidden test ids, names, inputs, expected values or per-test results. A test scans every prompt for them.
+
+**Recorded:**
+
+- Each version stores `generator_model_id` (the model the API **returned**), `generator_prompt_sha256`, `generation_latency_seconds`, `generation_prompt_tokens`, `generation_completion_tokens` and a deterministic `changelog`.
+- Each Critic reply becomes a `critic_feedback` row (`unvalidated_proposal`). `structured_feedback` holds the schema-validated `{diagnosis, suggestion, lesson}`, or is `null` if the reply failed validation; such a reply is not forwarded to the Generator.
+- Every LLM call, successful or failed, is a row in `llm_calls`: role, stage, requested and returned model, prompt SHA-256, outcome, error code, error class (the exception class name only), attempts, latency and tokens. An unusable Generator reply is recorded as an error call (`GENERATOR_OUTPUT_INVALID`) and its tokens still count against the budget. Prompts, replies and the API key are not stored there and are not written to logs.
+- **The second critique (V3) prompt** carries, from the hidden suite, only the hidden pass **counts** and the rejected attempt's failed term ids with their hidden-safe messages (for example `no_test_regression: 1 hidden test(s) passed in V1 but fail in V3`). Nothing else.
+- Without `FEATHERLESS_CRITIC_MODEL`, the critique steps make no call, and the Generator gets evaluator evidence only.
+
 ### `POST /api/executions/{execution_id}/cancel`
 
 Moves a non-terminal execution to `cancelled` and returns the same body as `GET /api/executions/{execution_id}`. Because no worker exists yet, this changes persisted state only. It returns 409 `INVALID_TRANSITION` if the execution is already terminal, including `completed_no_improvement`.
@@ -200,11 +277,61 @@ Moves a non-terminal execution to `cancelled` and returns the same body as `GET 
 
 Returns an array of `VersionRead` ordered by version number (empty when none exist), or 404 `EXECUTION_NOT_FOUND`.
 
+### `GET /api/executions/{execution_id}/evidence`
+
+The typed evidence of one execution (PRD Section 5), or 404 `EXECUTION_NOT_FOUND`. Read-only.
+
+```json
+{
+  "execution_id": "...",
+  "commitment": { "...": "(as in ExecutionRead)" },
+  "best_version_id": "...",
+  "scoring_rule": { "version": "2", "formula": "S = 0.5*P + 0.3*C + 0.2*Q", "delta": 1.0, "...": "..." },
+  "records": [
+    {
+      "id": "...",
+      "status": "rejected_attempt",
+      "candidate_version_id": "...",
+      "previous_best_version_id": "...",
+      "candidate_evaluation_id": "...",
+      "previous_evaluation_id": "...",
+      "failed_terms": [
+        { "term": "no_test_regression", "message": "1 hidden test(s) passed in V2 but fail in V3" },
+        { "term": "aggregate_delta", "message": "aggregate score 95 is not at least V2's 95 + delta 1" }
+      ],
+      "candidate_scores": { "...": "hidden/public counts and the four scores" },
+      "previous_scores": { "...": "..." },
+      "provenance": { "suite_hash": "...", "evaluator_config_hash": "...", "scoring_rule_version": "2", "delta": 1.0,
+                      "candidate_code_sha256": "...", "previous_code_sha256": "..." },
+      "created_at": "...",
+      "bundles": [ { "id": "...", "include_code": true, "bundle_sha256": "..." } ]
+    }
+  ],
+  "invalid_comparisons": [
+    {
+      "id": "...",
+      "status": "invalid_comparison",
+      "candidate_version_id": "...",
+      "previous_best_version_id": "...",
+      "reasons": [ { "term": "candidate_evaluation_complete", "message": "Candidate V3 has not been evaluated" } ],
+      "note": "Not evidence about the revision: the comparison could not validly occur.",
+      "created_at": "..."
+    }
+  ],
+  "unvalidated_proposals": 1
+}
+```
+
+- `records` hold only `validated_improvement` and `rejected_attempt`, one per decided revision. A rejected attempt lists **every** failed predicate term.
+- `invalid_comparisons` are stored separately and are not evidence. `unvalidated_proposals` counts Critic feedback rows, which are advisory only.
+
 ---
 
-## 5. Versions, evaluations and Critic feedback (read-only)
+## 5. Versions, evaluations, acceptance and Critic feedback
 
-There is deliberately **no** endpoint for clients to create or modify versions, evaluations or Critic feedback. These records are written by backend components only, so a client cannot submit a score or a result. Any write method on these paths returns 405.
+There is deliberately **no** endpoint for clients to create or modify versions, evaluations or Critic feedback with their own content. A client may **request** that the backend evaluator run (`POST .../evaluate`) or that the acceptance policy be applied (`POST .../acceptance-decision`). Both bodies must be empty: any field (a score, a verdict, `force`, a delta, a ZK status) is rejected with 422. Every number comes from the backend evaluator, so a client cannot submit a score or a result. Other write methods on these paths return 405.
+
+**Hidden tests are never revealed.** For hidden tests the API returns only aggregate counts. Names, inputs, expected values, per-test results and failure details are returned for public tests only, and decision messages count hidden tests ("2 hidden test(s)") without naming them.
 
 ### `GET /api/versions/{version_id}`
 
@@ -217,15 +344,117 @@ There is deliberately **no** endpoint for clients to create or modify versions, 
   "sequence": 2,
   "label": "V2",
   "code": "def merge_intervals(...): ...",
+  "code_sha256": "<sha256 of the UTF-8 code bytes, lowercase hex>",
   "generator_model_id": "Qwen/Qwen2.5-7B-Instruct",
+  "generator_prompt_sha256": "<sha256 of the canonical prompt>",
+  "generation_latency_seconds": 3.2,
+  "generation_prompt_tokens": 812,
+  "generation_completion_tokens": 240,
+  "changelog": ["V2 changes V1: +6 / -2 lines in 1 hunk(s).", "Definitions changed: merge_intervals."],
   "parent_version_id": "...",
   "acceptance_status": "pending",
   "rejection_reason": null,
+  "decided_at": null,
+  "decision_details": null,
   "created_at": "2026-10-30T12:03:00Z"
 }
 ```
 
-`acceptance_status` is `pending`, `accepted` or `rejected`. A rejected version always has a `rejection_reason`; other versions never do. The rule that decides acceptance is not implemented in this milestone.
+`code_sha256` is computed by the backend when the version is created (SHA-256 of the UTF-8 bytes of `code`, 64 lowercase hex characters, enforced by a CHECK constraint). It is never supplied by a client.
+
+`acceptance_status` is `pending`, `accepted` or `rejected`, and decisions are final. A rejected version always has a `rejection_reason`; other versions never do. `decided_at` and `decision_details` (outcome, failed terms, the hidden-safe scores of both versions, and the commitment the decision was made under) are set when the acceptance policy decides.
+
+### `POST /api/versions/{version_id}/evaluate` (201)
+
+Runs the backend evaluator on the version's stored code against the suite committed by its execution, stores a new evaluation (re-evaluation keeps history; the latest one is used), and returns its `EvaluationRead`. Before running, the stored code is re-hashed; the evaluation records the hash of the exact code it ran (`code_sha256`). Body: none, or `{}`. Errors: 404 `VERSION_NOT_FOUND`; 403 `EVALUATION_EXECUTION_DISABLED`; 409 `EVALUATION_SUITE_UNAVAILABLE`; 409 `CODE_HASH_MISMATCH` when the stored code no longer matches the hash recorded at creation; 409 `CONFLICT` when the execution is finished. The candidate runs in a **subprocess with time limits, which is not a security sandbox** (see `docs/EVALUATION_ENGINE.md`).
+
+### `POST /api/versions/{version_id}/acceptance-decision` (200)
+
+Applies the acceptance policy to the latest persisted evaluations. Body: none, or `{}`.
+
+```json
+{
+  "version_id": "...",
+  "label": "V2",
+  "outcome": "validated_improvement",
+  "acceptance_status": "accepted",
+  "reason": "V2 accepted: aggregate 94.6 >= V1 52 + delta 1, with no test or dimension regression.",
+  "failed_terms": [],
+  "candidate": { "version_id": "...", "label": "V2", "evaluation_id": "...", "tests_passed": 9, "tests_total": 10,
+                 "public_tests_passed": 5, "public_tests_total": 5, "test_pass_rate": 90.0,
+                 "correctness_score": 100.0, "code_quality_score": 98.0, "overall_score": 94.6 },
+  "previous_best": { "...": "same shape, for V1" },
+  "best_version_id": "...",
+  "evidence_id": "...",
+  "invalid_comparison_id": null,
+  "decided_at": "..."
+}
+```
+
+| `outcome` | Meaning | Version afterwards | Stored |
+|---|---|---|---|
+| `baseline` | V1 with a complete evaluation matching the commitment becomes the first best version | `accepted` | decision on the version |
+| `validated_improvement` | every precondition and predicate term holds | `accepted`; `best_version_id` moves to it | evidence record, in the same transaction |
+| `rejected_attempt` | valid comparison, at least one predicate term failed | `rejected` (final); best unchanged | evidence record listing every failed term |
+| `invalid_comparison` | a precondition failed | stays `pending` (it can be re-evaluated and judged later) | separate `invalid_comparisons` row; not evidence |
+
+Preconditions (term ids): `same_execution`, `candidate_evaluation_complete`, `previous_best_evaluation_complete`, `same_suite`, `same_evaluator_configuration`, `same_scoring_rule`, `same_code_hash_as_evaluated`. "Same" means equal to the execution's commitment. `same_code_hash_as_evaluated` holds when, for both versions, the evaluation's `code_sha256`, the version's recorded `code_sha256` and the hash of the code stored now are identical. Predicate terms: `no_test_regression` (public and hidden), `no_dimension_regression:hidden_pass_rate`, `no_dimension_regression:correctness`, `no_dimension_regression:code_quality`, `aggregate_delta` (`S_new >= S_old + delta`, delta = 1.0). The policy and the reasoning for delta are in `docs/EVALUATION_ENGINE.md`.
+
+Errors (409, nothing recorded): `CONFLICT` (already decided, execution finished, V1 decided twice, inconsistent best pointer, or a concurrent decision won), `BASELINE_REQUIRED`, `EVALUATION_REQUIRED`, `EVALUATION_NOT_COMPARABLE` and `CODE_HASH_MISMATCH` (baseline only). 404 `VERSION_NOT_FOUND`.
+
+`candidate` and `previous_best` include `code_sha256`, the hash of the code their evaluation ran.
+
+---
+
+## 5a. Evidence bundles (local; nothing is uploaded)
+
+A bundle is a hidden-safe, hash-addressed export of one evidence record. Only `validated_improvement` and `rejected_attempt` records can be exported. Rejected attempts export as first-class negative evidence, with the exact failed term ids and their hidden-safe messages. `invalid_comparison` rows and Critic feedback (`unvalidated_proposal`) are refused with 409 `EVIDENCE_NOT_EXPORTABLE`. Critic text is never included.
+
+### `POST /api/evidence/{record_id}/bundle` (201, or 200 if it already exists)
+
+Builds the bundle from stored data, or returns the existing one. Idempotent: the same record and the same `include_code` always give the same bundle and the same hash. Query `include_code` (default `true`): `false` exports code hashes only, with no source and no diff. Body: none, or `{}`; any field (content, scores, hashes, status, even `include_code`) is a 422. Errors: 404 `EVIDENCE_RECORD_NOT_FOUND`; 409 `EVIDENCE_NOT_EXPORTABLE`; 409 `CODE_HASH_MISMATCH` if either version's stored code no longer matches the code that was evaluated.
+
+If the previous best version was itself accepted through a validated improvement, that record's bundle is built first (same `include_code`), and its hash becomes this bundle's `parent_bundle_sha256`. The parent is `null` when the previous best is the baseline V1.
+
+### `GET /api/evidence/{record_id}/bundle`
+
+Query `include_code` (default `true`). Returns the stored bundle and re-verifies it. 404 `EVIDENCE_BUNDLE_NOT_FOUND` if it has not been built; 409 `EVIDENCE_NOT_EXPORTABLE` for an invalid comparison or a Critic proposal.
+
+```json
+{
+  "id": "...",
+  "evidence_record_id": "...",
+  "status": "rejected_attempt",
+  "include_code": true,
+  "bundle_sha256": "<as stored>",
+  "recomputed_sha256": "<sha256 of the UTF-8 bytes of bundle_json, computed now>",
+  "hash_valid": true,
+  "canonical": true,
+  "bundle_json": "{\"bundle_schema_version\":\"1\",...}",
+  "bundle": { "...": "bundle_json parsed" },
+  "created_at": "..."
+}
+```
+
+Verify a bundle by hashing the UTF-8 bytes of `bundle_json`, not a re-serialisation of `bundle`. `hash_valid: false` means the stored row was altered.
+
+**Bundle content** (canonical JSON: sorted keys, no whitespace, UTF-8, no NaN):
+
+| Key | Content |
+|---|---|
+| `kind`, `bundle_schema_version`, `include_code` | `"autoevolve.evidence_bundle"`, `"1"`, the flag |
+| `evidence` | `record_id`, `status`, `failed_terms` (`[{term, message}]`, empty for a validated improvement), `decided_at`, `decision_provenance` |
+| `execution` | `id`, `task_id`, `task_category` |
+| `commitment` | `suite_id`, `suite_hash`, `public_suite_hash`, `hidden_suite_hash`, `evaluator_config_hash`, `scoring_rule_version`, `delta`, `committed_at` |
+| `previous`, `candidate` | `version_id`, `label`, `sequence`, `code_sha256`, `code` (only with `include_code`), `evaluation_id`, `scores` (`hidden_pass_rate`, `correctness`, `code_quality`, `overall`), `public_tests` (`[{test_id, passed}]`), `public_counts`, `hidden_counts` (`{passed, total}`: **counts only**) |
+| `diff` | unified diff previous → candidate (`null` without `include_code`) |
+| `changelog` | deterministic, data-derived lines: source line counts; definitions added/removed/changed (names only with `include_code`, otherwise counts); public tests now passing/failing (names); hidden tests now passing/failing (**counts only**); dimension and aggregate changes; failed term ids |
+| `provenance` | the provenance records of both evaluations |
+| `parent_bundle_sha256` | hash of the parent bundle, or `null` |
+
+**Never in a bundle:** hidden test ids, names, inputs, expected values or per-test hidden results; Critic text; client-supplied data.
+
+**Storage:** `evidence_bundles` (`id`, `evidence_record_id`, `include_code`, `bundle_json`, `bundle_sha256`, `created_at`, `immutable`). One bundle per (record, `include_code`). SQLite triggers abort any UPDATE or DELETE on this table. If they are bypassed, `hash_valid` exposes the change.
 
 ### `GET /api/versions/{version_id}/evaluations`
 
@@ -235,6 +464,7 @@ Array of `EvaluationRead` in the order recorded (empty when none), or 404 `VERSI
 {
   "id": "...",
   "version_id": "...",
+  "code_sha256": "<sha256 of the code this evaluation ran>",
   "created_at": "2026-10-30T12:04:00Z",
   "deterministic": {
     "tests_passed": 7,
@@ -244,9 +474,23 @@ Array of `EvaluationRead` in the order recorded (empty when none), or 404 `VERSI
     "code_quality_score": 90.0,
     "overall_score": 77.0
   },
+  "public": { "tests_passed": 4, "tests_total": 5, "test_pass_rate": 80.0 },
+  "hidden_tests_failed": 3,
+  "suite_id": "python-merge-intervals-v1",
+  "suite_hash": "<sha256>",
+  "evaluator_version": "1",
+  "evaluator_config_hash": "<sha256>",
+  "scoring_rule_version": "2",
+  "provenance": { "public_suite_hash": "...", "hidden_suite_hash": "...", "evaluator_config": { }, "environment": { },
+                  "delta": 1.0, "execution_id": "...", "version_id": "...", "evaluated_at": "...",
+                  "matches_commitment": { "suite": true, "evaluator_config": true, "scoring_rule": true } },
+  "complete": true,
+  "test_results": [ { "test_id": "touching", "visibility": "public", "passed": false } ],
+  "score_breakdown": { "correctness": { }, "code_quality": { }, "execution": { } },
   "failure_details": [
     {
       "test_name": "touching",
+      "visibility": "public",
       "expected": "returns [(1, 5)]",
       "actual": "returned [(1, 3), (3, 5)]",
       "exception": null,
@@ -264,6 +508,8 @@ Array of `EvaluationRead` in the order recorded (empty when none), or 404 `VERSI
 }
 ```
 
+- `deterministic.tests_passed` / `tests_total` count **hidden** tests, and `test_pass_rate` is the hidden-suite pass rate (P in the score). `public` is recorded for context and regression checks and never enters a score. `test_results` and `failure_details` contain public tests only.
+- `complete` is true when the evaluation has full provenance and one outcome per configured test; only complete evaluations can be compared. `environment.runner_image_digest` is `null` because no container exists.
 - All scores are on a 0 to 100 scale. `test_pass_rate = tests_passed / tests_total * 100` and `overall_score = 0.5 * test_pass_rate + 0.3 * correctness_score + 0.2 * code_quality_score`, in full double precision with no rounding. The backend computes both from the components, and the **database itself rejects** any stored evaluation whose pass rate or overall score differs from these formulas by more than 1e-9 (CHECK constraints `ck_evaluations_pass_rate_consistent` and `ck_evaluations_overall_consistent`). A caller cannot supply or store a different aggregate.
 - `operational` is `null` when no operational data was recorded. Its fields never affect the deterministic score. `api_cost_source` is `provider_reported` or `estimated` whenever a cost is present.
 
@@ -281,7 +527,8 @@ Array of `CriticFeedbackRead` (empty when none), or 404 `VERSION_NOT_FOUND`.
   "identified_issues": [ ],
   "suggested_changes": [ ],
   "confidence": 0.95,
-  "created_at": "2026-10-30T12:03:30Z"
+  "created_at": "2026-10-30T12:03:30Z",
+  "evidence_status": "unvalidated_proposal"
 }
 ```
 
@@ -297,15 +544,21 @@ Critic feedback is advisory and is not an evaluation result. `confidence` is the
 | POST | `/api/tasks` | 201 | |
 | GET | `/api/tasks` | 200 | paginated |
 | GET | `/api/tasks/{task_id}` | 200 | |
-| POST | `/api/tasks/{task_id}/executions` | 201 | creates a queued execution only |
+| POST | `/api/tasks/{task_id}/executions` | 201 | creates a queued execution and records its commitment; 409 without a suite |
 | GET | `/api/executions` | 200 | paginated; `status`, `task_id` filters |
-| GET | `/api/executions/{execution_id}` | 200 | includes status history |
+| GET | `/api/executions/{execution_id}` | 200 | includes status history and commitment |
+| POST | `/api/executions/{execution_id}/run` | 202 | starts the orchestrator in the background; empty body only; 409 if not queued |
 | POST | `/api/executions/{execution_id}/cancel` | 200 | 409 if already terminal |
 | GET | `/api/executions/{execution_id}/versions` | 200 | |
+| GET | `/api/executions/{execution_id}/evidence` | 200 | typed evidence, invalid comparisons, proposal count |
 | GET | `/api/versions/{version_id}` | 200 | |
-| GET | `/api/versions/{version_id}/evaluations` | 200 | |
+| GET | `/api/versions/{version_id}/evaluations` | 200 | hidden tests as counts only |
+| POST | `/api/versions/{version_id}/evaluate` | 201 | runs the backend evaluator; empty body only |
+| POST | `/api/versions/{version_id}/acceptance-decision` | 200 | applies the acceptance policy; empty body only |
 | GET | `/api/versions/{version_id}/critic-feedback` | 200 | |
+| POST | `/api/evidence/{record_id}/bundle` | 201 / 200 | builds or returns the bundle; empty body only; `include_code` query |
+| GET | `/api/evidence/{record_id}/bundle` | 200 | stored bundle + re-verified hash |
 
 ## 7. Not yet implemented
 
-ZK proof generation and verification, IPFS publication and retrieval, blockchain registration, cross-agent memory endpoints, the `/status` external-service check, and any endpoint that runs the Generator, Critic or Evaluator.
+ZK proof generation and verification, IPFS publication and retrieval (bundles are local only), the egress gate, blockchain registration (including the on-chain hidden-suite commitment), the lesson validator, Agent B transfer and attestations, capabilities, cross-agent memory endpoints, and the `/status` external-service check. User-uploaded test suites are not supported: suites are defined in the backend.

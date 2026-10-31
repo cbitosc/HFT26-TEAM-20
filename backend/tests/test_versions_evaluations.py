@@ -142,11 +142,13 @@ def test_evaluation_endpoint_separates_deterministic_and_operational(client, db,
             failure_details=[
                 TestFailureDetail(
                     test_name="touching",
+                    visibility="public",
                     expected="returns [(1, 5)]",
                     actual="returned [(1, 3), (3, 5)]",
                     exception=None,
                     traceback_excerpt=["line 6, in merge_intervals: if start < last_end:"],
-                )
+                ),
+                TestFailureDetail(test_name="secret_hidden_case", visibility="hidden", expected="x", actual="y"),
             ],
             operational=OperationalMetricsInput(
                 execution_time_seconds=1.25, prompt_tokens=100, completion_tokens=50, total_tokens=150,
@@ -167,6 +169,8 @@ def test_evaluation_endpoint_separates_deterministic_and_operational(client, db,
     }
     assert e["failure_details"][0]["test_name"] == "touching"
     assert e["failure_details"][0]["traceback_excerpt"] == ["line 6, in merge_intervals: if start < last_end:"]
+    assert len(e["failure_details"]) == 1  # the hidden failure is never returned
+    assert "secret_hidden_case" not in str(items)
     assert not set(e["deterministic"]) & set(e["operational"])  # no field is in both groups
 
 
