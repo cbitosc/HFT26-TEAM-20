@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import { Activity, CheckCircle2, Layers, Target, Plus } from "lucide-react";
-import { useDashboardExecutions } from "../api/hooks";
+import { Activity, CheckCircle2, Layers, Target, Plus, Trash2 } from "lucide-react";
+import { useDashboardExecutions, useDeleteTask } from "../api/hooks";
 import { Spinner } from "../components/Spinner";
 import { ErrorBox } from "../components/ErrorBox";
 import { Empty } from "../components/Empty";
@@ -58,7 +58,14 @@ function StatCard({
 
 export function Home() {
   const { data, isLoading, isError, error, refetch } = useDashboardExecutions();
+  const del = useDeleteTask();
   const stats = data ? computeStats(data.items, data.total) : null;
+
+  function onDelete(taskId: string, title: string) {
+    if (window.confirm(`Delete "${title}" and all of its runs? This cannot be undone.`)) {
+      del.mutate(taskId);
+    }
+  }
 
   return (
     <section>
@@ -139,8 +146,18 @@ export function Home() {
                   <td className="muted">
                     {new Date(ex.created_at).toLocaleString()}
                   </td>
-                  <td>
-                    <Link to={`/executions/${ex.id}`}>Open</Link>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <Link to={`/executions/${ex.id}`}>Open</Link>{" "}
+                    <button
+                      type="button"
+                      className="ghost"
+                      aria-label={`Delete ${ex.task_title}`}
+                      title="Delete task and its runs"
+                      disabled={del.isPending}
+                      onClick={() => onDelete(ex.task_id, ex.task_title)}
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </td>
                 </tr>
               ))}

@@ -22,6 +22,7 @@ import {
   getMemory,
   createTransferExperiment,
   getTransferExperiment,
+  deleteTask,
   runExecution,
 } from "./client";
 import {
@@ -72,6 +73,16 @@ export function useCreateTransferExperiment() {
       createTransferExperiment(body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["memory"] });
+    },
+  });
+}
+
+export function useDeleteTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: string) => deleteTask(taskId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["dashboard-executions"] });
     },
   });
 }

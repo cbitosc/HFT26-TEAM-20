@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request
 
 from app.api.deps import DbSession, Limit, Offset
 from app.schemas.common import Envelope, Page, ok
+from typing import Any
 from app.schemas.execution import ExecutionRead
 from app.schemas.task import TaskCreate, TaskRead
 from app.services import dashboard_service, execution_service, task_service
@@ -32,6 +33,13 @@ def list_tasks(db: DbSession, limit: Limit = 50, offset: Offset = 0):
 @router.get("/{task_id}", response_model=Envelope[TaskRead])
 def get_task(task_id: str, db: DbSession):
     return ok(_read(db, task_service.get_task(db, task_id)))
+
+
+@router.delete("/{task_id}", response_model=Envelope[dict[str, Any]])
+def delete_task(task_id: str, db: DbSession):
+    """Delete a task and all of its runs. Refused with 409 if evidence was exported (immutable)."""
+    task_service.delete_task(db, task_id)
+    return ok({"id": task_id, "deleted": True})
 
 
 @router.post("/{task_id}/executions", status_code=201, response_model=Envelope[ExecutionRead])

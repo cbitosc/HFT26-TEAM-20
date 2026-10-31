@@ -50,7 +50,7 @@ function resolveBaseUrl(): string {
 const API_ROOT = `${resolveBaseUrl()}/api`;
 
 interface RequestOptions {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "DELETE";
   body?: unknown;
   signal?: AbortSignal;
 }
@@ -206,6 +206,13 @@ export function createExecution(taskId: string): Promise<ExecutionRead> {
   return request<ExecutionRead>(
     `/tasks/${encodeURIComponent(taskId)}/executions`,
     { method: "POST", body: {} },
+  );
+}
+
+export function deleteTask(taskId: string): Promise<{ id: string; deleted: boolean }> {
+  return request<{ id: string; deleted: boolean }>(
+    `/tasks/${encodeURIComponent(taskId)}`,
+    { method: "DELETE" },
   );
 }
 
