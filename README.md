@@ -86,3 +86,305 @@ All teams must follow the official fork-and-pull-request workflow:
 * **Upstream Protection**: Do not push directly to this repository's main branch. All evaluation will be conducted on your submitted Pull Request.
 * **Original Work**: All code submitted must be developed during the hackathon timeline. Open-source libraries and frameworks are welcomed with proper attribution.
 * **Code Freeze**: Final Pull Requests must be submitted before the designated hackathon submission deadline.
+
+---
+
+<!-- ===== AutoEvolve Protocol project documentation (added below the team starter template) ===== -->
+
+# AutoEvolve Protocol
+
+**Autonomous Agent Framework with Verifiable Improvement Claims**
+
+---
+
+## 1. Project Overview
+
+AutoEvolve Protocol demonstrates an autonomous AI agent framework that iteratively improves its solutions through structured critique, with every improvement claim verifiable through zero-knowledge proofs and immutable on-chain registration.
+
+### 1.1 Problem Statement
+
+AI-generated solutions lack:
+- **Verifiability**: No cryptographic proof that improvements actually occurred
+- **Transparency**: No immutable record of the evolution process
+- **Knowledge Transfer**: No mechanism for one agent to learn from another's execution
+
+### 1.2 Solution
+
+AutoEvolve Protocol creates a verifiable improvement loop:
+1. Generator produces initial solution (V1)
+2. Evaluator measures performance with deterministic metrics
+3. Critic identifies weaknesses
+4. Generator produces improved version (V2)
+5. ZK proof cryptographically verifies the improvement
+6. Execution history published to IPFS
+7. CID registered on Ethereum Sepolia
+8. Second agent inherits knowledge for new tasks
+
+### 1.3 Current Implementation Status
+
+Sections 4, 5 and 9 below describe the *intended* demonstration. This table says what exists today.
+
+| Component | Status |
+|-----------|--------|
+| FastAPI + SQLite backend foundation (tasks, executions, validated lifecycle, versions, evaluations, Critic feedback storage, health check) | **Implemented** (`backend/`) |
+| ZK improvement proof (Circom circuit, Groth16 proof and verification, 10 test cases, tampering test) | **Implemented as a standalone prototype** (`zk/`); development-only trusted setup; not called by the backend |
+| Featherless model comparison and Critic validation harnesses | **Research tooling** (`eval/`); not part of the application |
+| Deterministic evaluator (public and hidden tests, subprocess execution) and strict acceptance policy, delta = 1.0 | **Implemented** (`backend/app/evaluation/`; see `docs/EVALUATION_ENGINE.md`). The subprocess is **not a security sandbox** |
+| Provenance hashes on every evaluation (suite, public/hidden suite, evaluator configuration, scoring-rule version) | **Implemented** |
+| Commitment recorded at execution creation, before any version (suite hashes, evaluator config hash, scoring rule, delta) | **Implemented** in SQLite. On-chain (Sepolia) copy: not yet implemented |
+| Four evidence statuses (`validated_improvement`, `rejected_attempt`, `invalid_comparison`, `unvalidated_proposal`) | **Implemented** (`GET /api/executions/{id}/evidence`) |
+| Code-hash binding (`code_sha256` on versions and evaluations; gate precondition `same_code_hash_as_evaluated`) | **Implemented** |
+| Local evidence bundles (canonical JSON + SHA-256, hidden-safe, rejected attempts as negative evidence, immutable) | **Implemented** (`POST/GET /api/evidence/{record_id}/bundle`); local only, nothing uploaded |
+| Run concurrency and limits: one run per execution (compare-and-swap claim, `RUN_ALREADY_STARTED`), per-step database sessions, no auto-resume after a restart (`stalled`), per-execution caps of 6 LLM calls and 40,000 tokens | **Implemented** |
+| User-uploaded suites: public and hidden tests as data (parsed as literals, never executed), hidden tests **encrypted at rest** (Fernet), decrypted only at evaluation time; counts and hashes only ever leave the backend | **Implemented** (Milestone 08A). The key lives on the evaluator's host: encryption at rest, not protection from a compromised host |
+| Dashboard-facing read endpoints (`/api/status`, `/api/dashboard/executions`, `/tree`, `/diff`) and a CORS allowlist | **Implemented** (hidden-safe, read-only) |
+| Featherless client (temperature 0, pinned model, retry/backoff), Generator, Critic, orchestrator (`POST /api/executions/{id}/run`, V1 → final state) | **Implemented** (`backend/app/llm`, `backend/app/agents`, `backend/app/services/orchestrator.py`). Tested with a scripted fake LLM only; no live run has been made in this milestone (`eval/live_smoke.py` exists, env-gated) |
+| Lifecycle: completion decoupled from publishing; second critique (`critiquing_v2`) before V3 | **Implemented** |
+| Backend integration of ZK proofs, IPFS (Pinata), egress gate, Sepolia registry and on-chain commitment | Not yet implemented |
+| Lesson validator, Agent B transfer test, capabilities | Not yet implemented |
+| Solidity contracts and Foundry deployment | Not yet implemented |
+| Web dashboard (React, per the PRD; replaces the earlier Streamlit plan) | Not yet implemented |
+
+The PRD ("Final PRD, Architecture and UI Workflow") is now the reference. `docs/PRD_ALIGNMENT.md` records the decisions on its open questions and audits each requirement against this repository.
+| Cross-agent memory retrieval | Not yet implemented (only a minimal storage table exists) |
+
+---
+
+## 2. Technology Stack
+
+| Layer | Technology |
+|-------|------------|
+| Dashboard | Streamlit |
+| Data Processing | Pandas |
+| Visualizations | Plotly |
+| Backend | Python + FastAPI |
+| AI API | Featherless API |
+| Agent Orchestration | Python |
+| Evaluation | Deterministic Python |
+| Database | SQLite |
+| ZK Circuits | Circom |
+| ZK Proof System | snarkjs |
+| Smart Contracts | Solidity |
+| Contract Tooling | Foundry |
+| Blockchain | Ethereum Sepolia |
+| Decentralized Storage | IPFS via Pinata |
+| Version Control | Git / GitHub |
+
+---
+
+## 3. Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    DASHBOARD LAYER                          │
+│                     (Streamlit)                             │
+│  - Command Center   - Evolution Lab   - Analytics          │
+│  - ZK Center        - IPFS View       - Blockchain         │
+│  - Agent Comparison                                        │
+└────────────────────────────┬────────────────────────────────┘
+                             │ HTTP/REST
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      REST API LAYER                         │
+│                       (FastAPI)                             │
+│  /tasks /executions /versions /zk-proofs /ipfs /blockchain │
+└────────────────────────────┬────────────────────────────────┘
+                             │
+         ┌───────────────────┼───────────────────┐
+         ▼                   ▼                   ▼
+┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐
+│   Agent     │    │   ZK        │    │    Storage          │
+│  Services   │    │   Service   │    │    Services         │
+│             │    │             │    │                     │
+│ - Generator │    │ - Circom    │    │ - IPFS/Pinata       │
+│ - Critic    │    │ - snarkjs   │    │ - SQLite            │
+│ - Evaluator │    │             │    │ - Blockchain        │
+└─────────────┘    └─────────────┘    └─────────────────────┘
+```
+
+---
+
+## 4. Main Demonstration Scenario
+
+### Scenario: Sorting Algorithm Improvement
+
+1. **Task Submission**: Developer submits "Implement efficient sorting"
+2. **V1 Generation**: AI produces bubble sort (score: 65)
+3. **Evaluation**: Correctness ✓, Efficiency ✗ (O(n²))
+4. **Critique**: "Consider quicksort or mergesort for better time complexity"
+5. **V2 Generation**: AI produces quicksort (score: 87)
+6. **Evaluation**: Correctness ✓, Efficiency ✓ (O(n log n))
+7. **ZK Proof**: Proves score_v2 > score_v1 by 22+ points
+8. **IPFS**: Publication returns CID `QmXyZ...`
+9. **Blockchain**: Transaction registers CID on Sepolia
+10. **Agent 2**: Retrieves memory, applies sorting optimization knowledge to new task
+11. **Dashboard**: Complete workflow visualized
+
+---
+
+## 5. Key Features
+
+### 5.1 Verifiable Improvement Claims
+- Zero-knowledge proofs verify numerical score improvement
+- Cannot be faked - cryptographic verification required
+
+### 5.2 Immutable Execution Record
+- Full history stored on IPFS
+- CID registered on Ethereum Sepolia
+- Tamper-proof and publicly accessible
+
+### 5.3 Cross-Agent Knowledge Transfer
+- Agent 2 can retrieve Agent 1's execution context
+- Demonstrates actual knowledge inheritance
+- Performance comparison tracked
+
+### 5.4 Complete Workflow Visualization
+- Streamlit dashboard shows every step
+- Version comparisons with code diffs
+- Real-time status updates
+
+---
+
+## 6. Project Structure
+
+Each directory is marked **implemented**, **research tooling**, or **planned** (not created yet).
+
+```
+CBIT/
+├── README.md, SPEC.md, AGENTS.md
+├── FEATHERLESS_CRITIC_VALIDATION_REPORT.md   # research result
+│
+├── backend/                 # IMPLEMENTED: FastAPI + SQLite foundation
+│   ├── app/
+│   │   ├── main.py, config.py, database.py, init_db.py
+│   │   ├── lifecycle.py, scoring.py, errors.py
+│   │   └── models/  schemas/  services/  api/
+│   ├── tests/               # pytest suite
+│   └── requirements.txt, pytest.ini, .env.example, README.md
+│
+├── zk/                      # IMPLEMENTED: standalone ZK prototype (not yet called by the backend)
+│   ├── circuits/improvement_proof.circom
+│   ├── scripts/build.js     # compile + development-only trusted setup
+│   ├── tests/run_tests.js
+│   └── package.json
+│
+├── eval/                    # RESEARCH TOOLING: Featherless comparison / Critic validation harnesses and results
+├── docs/                    # documentation
+│
+├── dashboard/               # PLANNED: Streamlit dashboard (not created)
+└── contracts/               # PLANNED: Solidity + Foundry (not created)
+```
+
+The SQLite database is created automatically by the backend (default `backend/data/autoevolve.db`, git-ignored). There is no SQL schema file and no migration tool; tables are created with SQLAlchemy `create_all` at startup.
+
+---
+
+## 7. Setup Instructions
+
+### Prerequisites
+
+- Python 3.12+
+- Node.js 18+ (24.x was used)
+- Windows PowerShell (the commands below are PowerShell)
+- Git is optional; this directory is not currently a Git repository
+
+### 7.1 Backend (implemented)
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+copy .env.example .env                              # optional; defaults work without it
+.\.venv\Scripts\python.exe -m app.init_db           # optional; startup also creates the tables
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+.\.venv\Scripts\python.exe -m pytest                # run the test suite
+```
+
+Interactive API documentation is served at `http://127.0.0.1:8000/docs`. See `backend/README.md` for configuration.
+
+### 7.2 ZK prototype (implemented, standalone)
+
+```powershell
+cd zk
+npm install                                         # snarkjs and circomlib, installed locally
+# Download circom v2.2.3 (circom-windows-amd64.exe) from https://github.com/iden3/circom/releases
+# and save it as zk\bin\circom.exe
+node scripts/build.js                               # compile + DEVELOPMENT-ONLY trusted setup
+node tests/run_tests.js                             # 10 cases + tampering test
+```
+
+The trusted setup is single-party and for development only. See `docs/ZK_TRUST_MODEL.md`.
+
+### 7.3 Planned (no setup exists yet)
+
+The Streamlit dashboard, the Solidity/Foundry contracts, IPFS (Pinata) and Sepolia integration are not implemented, so there are no installation or start commands for them. The research harnesses in `eval/` read `FEATHERLESS_API_KEY` from the environment if you want to rerun them.
+
+---
+
+## 8. API Endpoints
+
+### 8.1 Implemented endpoints
+
+All paths are under `/api`. Full request and response schemas are in `docs/API_CONTRACT.md`.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | Backend and database status |
+| `/api/tasks` | POST, GET | Create a task; list tasks |
+| `/api/tasks/{task_id}` | GET | Get a task |
+| `/api/tasks/{task_id}/executions` | POST | Create a queued execution and record its commitment (suite hashes, evaluator config, scoring rule, delta); nothing runs it yet |
+| `/api/executions` | GET | List executions |
+| `/api/executions/{execution_id}` | GET | Execution details, status history and commitment |
+| `/api/executions/{execution_id}/run` | POST | Start the orchestrator for a queued execution (202, background; empty body) |
+| `/api/executions/{execution_id}/cancel` | POST | Cancel a non-terminal execution |
+| `/api/executions/{execution_id}/versions` | GET | List versions of an execution |
+| `/api/executions/{execution_id}/evidence` | GET | Typed evidence, invalid comparisons, Critic proposal count |
+| `/api/versions/{version_id}` | GET | Get a version |
+| `/api/versions/{version_id}/evaluations` | GET | Evaluation history of a version (hidden tests as counts only) |
+| `/api/versions/{version_id}/evaluate` | POST | Run the backend evaluator on the stored code (empty body) |
+| `/api/versions/{version_id}/acceptance-decision` | POST | Apply the acceptance policy to persisted evaluations (empty body) |
+| `/api/versions/{version_id}/critic-feedback` | GET | Stored Critic feedback of a version |
+| `/api/evidence/{record_id}/bundle` | POST, GET | Build (idempotent) or read a local, hash-addressed evidence bundle (empty body) |
+| `/api/status` | GET | Capability flags (booleans) for the dashboard |
+| `/api/dashboard/executions` | GET | Executions with task title, status, stalled flag, best hidden accuracy |
+| `/api/executions/{execution_id}/tree` | GET | Version tree with public/hidden counts, decisions, failed terms, generation metadata |
+| `/api/versions/{version_id}/diff` | GET | Unified diff against the parent and the deterministic changelog |
+
+There is deliberately no endpoint for clients to submit evaluation scores, force an acceptance, or claim an improvement. Clients can only ask the backend to evaluate or to apply the policy; any field in those request bodies is rejected.
+
+### 8.2 Planned endpoints (not implemented)
+
+ZK proof generation and verification, IPFS publication and retrieval, egress gate, blockchain registration, lesson replay, Agent B attestations, capabilities, cross-agent memory retrieval and storage.
+
+---
+
+## 9. Demonstration Flow
+
+```
+┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+│  Submit  │───▶│ Generate │───▶│ Evaluate │───▶│ Critique │
+│  Task    │    │    V1    │    │    V1    │    │    V1    │
+└──────────┘    └──────────┘    └──────────┘    └──────────┘
+                                                      │
+                                                      ▼
+┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+│ Dashboard│◀───│ Blockchain│◀───│   IPFS   │◀───│ Generate │
+│   View   │    │ Register │    │ Publish  │    │    V2    │
+└──────────┘    └──────────┘    └──────────┘    └──────────┘
+       │                                            │
+       │            ┌──────────┐                    │
+       └───────────▶│  Agent 2 │◀───────────────────┘
+                    │  Memory  │
+                    │ Retrieve │
+                    └──────────┘
+```
+
+---
+
+## 10. License
+
+MIT License
+
+---
+
+**AutoEvolve Protocol** — *Verifiable AI Improvement Through Zero-Knowledge Proofs*

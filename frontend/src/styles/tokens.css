@@ -1,0 +1,133 @@
+/* Design tokens — the single source of truth for colour, spacing, radius,
+   shadow and type. Dark-first; [data-theme="light"] overrides the palette.
+   Every other stylesheet references these variables and never hard-codes a
+   colour or size. */
+
+:root {
+  /* type */
+  --font-ui: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace,
+    "SF Mono", Menlo, Consolas, monospace;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.825rem;
+  --fs-md: 0.9rem;
+  --fs-lg: 1.05rem;
+  --fs-xl: 1.3rem;
+  --fs-2xl: 1.7rem;
+  --fs-3xl: 2.2rem;
+  --lh: 1.5;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* spacing (4px base; 24px = --s-6 is the standard gap) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+
+  /* radius */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-pill: 999px;
+
+  /* shadow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.45);
+
+  /* motion */
+  --t-fast: 150ms ease;
+
+  /* layout */
+  --sidebar-w: 240px;
+  --topbar-h: 60px;
+  --content-max: 1200px;
+
+  /* palette — dark (default) */
+  --bg: #0b0d11;
+  --bg-elev: #111419;
+  --panel: #14181f;
+  --panel-2: #1a1f28;
+  --panel-hover: #1e242e;
+  --border: #272d38;
+  --border-strong: #363d4a;
+  --text: #e8eaed;
+  --text-dim: #aeb6c2;
+  --muted: #8a93a3;
+
+  --accent: #6ea8fe;
+  --accent-strong: #3b82f6;
+  --accent-contrast: #ffffff;
+
+  --ok: #3fb950;
+  --bad: #f85149;
+  --warn: #e3a008;
+  --neutral: #6e7681;
+  --running: #4493f8;
+  --sample: #a371f7;
+
+  --ok-bg: rgba(63, 185, 80, 0.14);
+  --bad-bg: rgba(248, 81, 73, 0.14);
+  --warn-bg: rgba(227, 160, 8, 0.15);
+  --neutral-bg: rgba(110, 118, 129, 0.18);
+  --running-bg: rgba(68, 147, 248, 0.15);
+  --sample-bg: rgba(163, 113, 247, 0.18);
+
+  --added: #0f2e18;
+  --added-text: #56d364;
+  --removed: #3a1113;
+  --removed-text: #ff7b72;
+  --code-bg: #0c0f14;
+
+  --focus: #6ea8fe;
+}
+
+[data-theme="light"] {
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-md: 0 4px 16px rgba(16, 24, 40, 0.08);
+  --shadow-lg: 0 12px 40px rgba(16, 24, 40, 0.12);
+
+  --bg: #f6f7f9;
+  --bg-elev: #ffffff;
+  --panel: #ffffff;
+  --panel-2: #f3f4f6;
+  --panel-hover: #eef0f3;
+  --border: #e4e7ec;
+  --border-strong: #d0d5dd;
+  --text: #101828;
+  --text-dim: #475467;
+  --muted: #667085;
+
+  --accent: #3b82f6;
+  --accent-strong: #2563eb;
+  --accent-contrast: #ffffff;
+
+  --ok: #1a7f37;
+  --bad: #d1242f;
+  --warn: #9a6700;
+  --neutral: #6e7681;
+  --running: #2563eb;
+  --sample: #8250df;
+
+  --ok-bg: rgba(26, 127, 55, 0.1);
+  --bad-bg: rgba(209, 36, 47, 0.1);
+  --warn-bg: rgba(154, 103, 0, 0.12);
+  --neutral-bg: rgba(110, 118, 129, 0.14);
+  --running-bg: rgba(37, 99, 235, 0.1);
+  --sample-bg: rgba(130, 80, 223, 0.12);
+
+  --added: #e6ffec;
+  --added-text: #1a7f37;
+  --removed: #ffebe9;
+  --removed-text: #cf222e;
+  --code-bg: #f6f8fa;
+
+  --focus: #2563eb;
+}

@@ -1,0 +1,814 @@
+{
+  "created": "2026-10-30T23:56:37",
+  "prior_file_sha256": {
+    "featherless_compare_20261030_233408.json": "C0F5D40E75861EF626ABCF9BCA429ACD097C60339C4461292E9E414BB8419538",
+    "featherless_followup_20261030_233845.json": "7851C5D25D45ACECF347A647DA493BDA19D2B805AFC05BF98EBD32871FF7251D",
+    "featherless_control_20261030_234108.json": "D02A76AE3E8E75624FBFC31511262E39DF485E5E65F064FC9714A4B72516BB3F"
+  },
+  "candidates": {
+    "A_flawed": {
+      "label": "Deliberately flawed implementation (FLAWED_CODE constant, 5 seeded defects)",
+      "file": "eval/candidates/A_flawed.py",
+      "code_sha256": "2670FF819BE4BE9AD53A10B3735D73F7407F220EADFDB51AC5922531C00467AA",
+      "defects_ground_truth": [
+        {
+          "id": "D1",
+          "name": "mutates the caller's list",
+          "location": "line 2: intervals.sort()",
+          "tests": [
+            "input_not_mutated"
+          ]
+        },
+        {
+          "id": "D2",
+          "name": "crashes on an empty list",
+          "location": "line 3: merged = [intervals[0]]",
+          "tests": [
+            "empty"
+          ]
+        },
+        {
+          "id": "D3",
+          "name": "touching intervals are not merged",
+          "location": "line 6: `start < last_end` should be `<=`",
+          "tests": [
+            "touching",
+            "chain"
+          ]
+        },
+        {
+          "id": "D4",
+          "name": "contained interval shrinks the merged end",
+          "location": "line 7: (last_start, end) should use max(last_end, end)",
+          "tests": [
+            "contained"
+          ]
+        },
+        {
+          "id": "D5",
+          "name": "no input validation",
+          "location": "missing behavior: TypeError / ValueError checks",
+          "tests": [
+            "typeerror_not_list",
+            "typeerror_bad_element",
+            "typeerror_non_int_values",
+            "valueerror_start_gt_end",
+            "validation_applies_to_all"
+          ]
+        }
+      ],
+      "failed_tests": [
+        "chain",
+        "contained",
+        "empty",
+        "input_not_mutated",
+        "touching",
+        "typeerror_bad_element",
+        "typeerror_non_int_values",
+        "typeerror_not_list",
+        "validation_applies_to_all",
+        "valueerror_start_gt_end"
+      ],
+      "passed_count": 4,
+      "total": 14,
+      "equivalent_to_03_2_suite": true,
+      "failed_matches_defect_ground_truth": true,
+      "failed_matches_stored_03_2_result": null,
+      "evidence": {
+        "load_error": null,
+        "tests": [
+          {
+            "name": "overlap",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 3), (2, 6), (8, 10)])",
+                "expected": "returns [(1, 6), (8, 10)]",
+                "actual": "returned [(1, 6), (8, 10)]",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "touching",
+            "passed": false,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 3), (3, 5)])",
+                "expected": "returns [(1, 5)]",
+                "actual": "returned [(1, 3), (3, 5)]",
+                "trace": [],
+                "passed": false
+              }
+            ]
+          },
+          {
+            "name": "contained",
+            "passed": false,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 10), (2, 3)])",
+                "expected": "returns [(1, 10)]",
+                "actual": "returned [(1, 3)]",
+                "trace": [],
+                "passed": false
+              }
+            ]
+          },
+          {
+            "name": "unsorted_input",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 3), (2, 6), (8, 10)])",
+                "expected": "returns [(1, 6), (8, 10)]",
+                "actual": "returned [(1, 6), (8, 10)]",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "chain",
+            "passed": false,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 4), (4, 5), (5, 9), (10, 11)])",
+                "expected": "returns [(1, 9), (10, 11)]",
+                "actual": "returned [(1, 4), (4, 5), (5, 9), (10, 11)]",
+                "trace": [],
+                "passed": false
+              }
+            ]
+          },
+          {
+            "name": "empty",
+            "passed": false,
+            "checks": [
+              {
+                "call": "merge_intervals([])",
+                "expected": "returns []",
+                "actual": "raised IndexError: list index out of range",
+                "trace": [
+                  "line 3, in merge_intervals: merged = [intervals[0]]"
+                ],
+                "passed": false
+              }
+            ]
+          },
+          {
+            "name": "single_point",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(4, 4)])",
+                "expected": "returns [(4, 4)]",
+                "actual": "returned [(4, 4)]",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "input_not_mutated",
+            "passed": false,
+            "checks": [
+              {
+                "call": "merge_intervals(inp) where inp = [(5, 6), (1, 2), (2, 3)]",
+                "expected": "input list unchanged: [(5, 6), (1, 2), (2, 3)]",
+                "actual": "input list after the call: [(1, 2), (2, 3), (5, 6)]",
+                "trace": [],
+                "passed": false
+              },
+              {
+                "call": "merge_intervals(inp) where inp = [(5, 6), (1, 2), (2, 3)]",
+                "expected": "returns a different list object than inp",
+                "actual": "returned a different list object",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "returns_tuples",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 2), (2, 3), (7, 8)])",
+                "expected": "returns a list in which every item has type tuple",
+                "actual": "returned [(1, 2), (2, 3), (7, 8)] with item types ['tuple', 'tuple', 'tuple']",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "typeerror_not_list",
+            "passed": false,
+            "checks": [
+              {
+                "call": "merge_intervals(None)",
+                "expected": "raises TypeError",
+                "actual": "raised AttributeError: 'NoneType' object has no attribute 'sort'",
+                "trace": [
+                  "line 2, in merge_intervals: intervals.sort()"
+                ],
+                "passed": false
+              },
+              {
+                "call": "merge_intervals(((1, 2),))",
+                "expected": "raises TypeError",
+                "actual": "raised AttributeError: 'tuple' object has no attribute 'sort'",
+                "trace": [
+                  "line 2, in merge_intervals: intervals.sort()"
+                ],
+                "passed": false
+              }
+            ]
+          },
+          {
+            "name": "typeerror_bad_element",
+            "passed": false,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 2), (3,)])",
+                "expected": "raises TypeError",
+                "actual": "raised ValueError: not enough values to unpack (expected 2, got 1)",
+                "trace": [
+                  "line 4, in merge_intervals: for start, end in intervals[1:]:"
+                ],
+                "passed": false
+              },
+              {
+                "call": "merge_intervals([(1, 'a')])",
+                "expected": "raises TypeError",
+                "actual": "returned [(1, 'a')] without raising",
+                "trace": [],
+                "passed": false
+              },
+              {
+                "call": "merge_intervals([(1, 2), [3, 4]])",
+                "expected": "raises TypeError",
+                "actual": "raised TypeError: '<' not supported between instances of 'list' and 'tuple' (as expected)",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "valueerror_start_gt_end",
+            "passed": false,
+            "checks": [
+              {
+                "call": "merge_intervals([(5, 1)])",
+                "expected": "raises ValueError",
+                "actual": "returned [(5, 1)] without raising",
+                "trace": [],
+                "passed": false
+              }
+            ]
+          },
+          {
+            "name": "validation_applies_to_all",
+            "passed": false,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 2), (9, 3)])",
+                "expected": "raises ValueError",
+                "actual": "returned [(1, 2), (9, 3)] without raising",
+                "trace": [],
+                "passed": false
+              }
+            ]
+          },
+          {
+            "name": "typeerror_non_int_values",
+            "passed": false,
+            "checks": [
+              {
+                "call": "merge_intervals([(1.5, 2.5)])",
+                "expected": "raises TypeError",
+                "actual": "returned [(1.5, 2.5)] without raising",
+                "trace": [],
+                "passed": false
+              },
+              {
+                "call": "merge_intervals([('a', 'b')])",
+                "expected": "raises TypeError",
+                "actual": "returned [('a', 'b')] without raising",
+                "trace": [],
+                "passed": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "B_gen_7b": {
+      "label": "Qwen/Qwen2.5-7B-Instruct actual generated solution (Prompt 03.2 gen_initial)",
+      "file": "eval/candidates/B_gen_7b.py",
+      "code_sha256": "9716A4B6A7F1CB873388D22C2ECB4BEDCAF06E8F1700EC4389A20DE7C6D039E0",
+      "defects_ground_truth": [
+        {
+          "id": "B1",
+          "name": "mutates the caller's list",
+          "location": "intervals.sort(key=lambda x: x[0])",
+          "tests": [
+            "input_not_mutated"
+          ]
+        }
+      ],
+      "failed_tests": [
+        "input_not_mutated"
+      ],
+      "passed_count": 13,
+      "total": 14,
+      "equivalent_to_03_2_suite": true,
+      "failed_matches_defect_ground_truth": true,
+      "failed_matches_stored_03_2_result": true,
+      "evidence": {
+        "load_error": null,
+        "tests": [
+          {
+            "name": "overlap",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 3), (2, 6), (8, 10)])",
+                "expected": "returns [(1, 6), (8, 10)]",
+                "actual": "returned [(1, 6), (8, 10)]",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "touching",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 3), (3, 5)])",
+                "expected": "returns [(1, 5)]",
+                "actual": "returned [(1, 5)]",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "contained",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 10), (2, 3)])",
+                "expected": "returns [(1, 10)]",
+                "actual": "returned [(1, 10)]",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "unsorted_input",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 3), (2, 6), (8, 10)])",
+                "expected": "returns [(1, 6), (8, 10)]",
+                "actual": "returned [(1, 6), (8, 10)]",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "chain",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 4), (4, 5), (5, 9), (10, 11)])",
+                "expected": "returns [(1, 9), (10, 11)]",
+                "actual": "returned [(1, 9), (10, 11)]",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "empty",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([])",
+                "expected": "returns []",
+                "actual": "returned []",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "single_point",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(4, 4)])",
+                "expected": "returns [(4, 4)]",
+                "actual": "returned [(4, 4)]",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "input_not_mutated",
+            "passed": false,
+            "checks": [
+              {
+                "call": "merge_intervals(inp) where inp = [(5, 6), (1, 2), (2, 3)]",
+                "expected": "input list unchanged: [(5, 6), (1, 2), (2, 3)]",
+                "actual": "input list after the call: [(1, 2), (2, 3), (5, 6)]",
+                "trace": [],
+                "passed": false
+              },
+              {
+                "call": "merge_intervals(inp) where inp = [(5, 6), (1, 2), (2, 3)]",
+                "expected": "returns a different list object than inp",
+                "actual": "returned a different list object",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "returns_tuples",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 2), (2, 3), (7, 8)])",
+                "expected": "returns a list in which every item has type tuple",
+                "actual": "returned [(1, 3), (7, 8)] with item types ['tuple', 'tuple']",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "typeerror_not_list",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals(None)",
+                "expected": "raises TypeError",
+                "actual": "raised TypeError: Input must be a list of intervals. (as expected)",
+                "trace": [],
+                "passed": true
+              },
+              {
+                "call": "merge_intervals(((1, 2),))",
+                "expected": "raises TypeError",
+                "actual": "raised TypeError: Input must be a list of intervals. (as expected)",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "typeerror_bad_element",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 2), (3,)])",
+                "expected": "raises TypeError",
+                "actual": "raised TypeError: Each interval must be a tuple of two integers. (as expected)",
+                "trace": [],
+                "passed": true
+              },
+              {
+                "call": "merge_intervals([(1, 'a')])",
+                "expected": "raises TypeError",
+                "actual": "raised TypeError: Each interval must be a tuple of integers. (as expected)",
+                "trace": [],
+                "passed": true
+              },
+              {
+                "call": "merge_intervals([(1, 2), [3, 4]])",
+                "expected": "raises TypeError",
+                "actual": "raised TypeError: Each interval must be a tuple of two integers. (as expected)",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "valueerror_start_gt_end",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(5, 1)])",
+                "expected": "raises ValueError",
+                "actual": "raised ValueError: Interval start must not be greater than end. (as expected)",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "validation_applies_to_all",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 2), (9, 3)])",
+                "expected": "raises ValueError",
+                "actual": "raised ValueError: Interval start must not be greater than end. (as expected)",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "typeerror_non_int_values",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1.5, 2.5)])",
+                "expected": "raises TypeError",
+                "actual": "raised TypeError: Each interval must be a tuple of integers. (as expected)",
+                "trace": [],
+                "passed": true
+              },
+              {
+                "call": "merge_intervals([('a', 'b')])",
+                "expected": "raises TypeError",
+                "actual": "raised TypeError: Each interval must be a tuple of integers. (as expected)",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "C_gen_coder": {
+      "label": "Qwen/Qwen2.5-Coder-7B-Instruct actual generated solution (Prompt 03.2 gen_initial)",
+      "file": "eval/candidates/C_gen_coder.py",
+      "code_sha256": "6F2365BC7971803572FD1598F552CF2DA6DCD37D845F86ED8EB3E1BA49B1E5CE",
+      "defects_ground_truth": [
+        {
+          "id": "C1",
+          "name": "never sorts the input",
+          "location": "main loop iterates `intervals` in the given order; no sort anywhere",
+          "tests": [
+            "unsorted_input"
+          ]
+        },
+        {
+          "id": "C2",
+          "name": "no integer type check on interval values",
+          "location": "validation loop checks only tuple-ness and len == 2",
+          "tests": [
+            "typeerror_non_int_values"
+          ]
+        }
+      ],
+      "failed_tests": [
+        "typeerror_non_int_values",
+        "unsorted_input"
+      ],
+      "passed_count": 12,
+      "total": 14,
+      "equivalent_to_03_2_suite": true,
+      "failed_matches_defect_ground_truth": true,
+      "failed_matches_stored_03_2_result": true,
+      "evidence": {
+        "load_error": null,
+        "tests": [
+          {
+            "name": "overlap",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 3), (2, 6), (8, 10)])",
+                "expected": "returns [(1, 6), (8, 10)]",
+                "actual": "returned [(1, 6), (8, 10)]",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "touching",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 3), (3, 5)])",
+                "expected": "returns [(1, 5)]",
+                "actual": "returned [(1, 5)]",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "contained",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 10), (2, 3)])",
+                "expected": "returns [(1, 10)]",
+                "actual": "returned [(1, 10)]",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "unsorted_input",
+            "passed": false,
+            "checks": [
+              {
+                "call": "merge_intervals([(8, 10), (1, 3), (2, 6)])",
+                "expected": "returns [(1, 6), (8, 10)]",
+                "actual": "returned [(8, 10)]",
+                "trace": [],
+                "passed": false
+              }
+            ]
+          },
+          {
+            "name": "chain",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 4), (4, 5), (5, 9), (10, 11)])",
+                "expected": "returns [(1, 9), (10, 11)]",
+                "actual": "returned [(1, 9), (10, 11)]",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "empty",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([])",
+                "expected": "returns []",
+                "actual": "returned []",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "single_point",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(4, 4)])",
+                "expected": "returns [(4, 4)]",
+                "actual": "returned [(4, 4)]",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "input_not_mutated",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals(inp) where inp = [(5, 6), (1, 2), (2, 3)]",
+                "expected": "input list unchanged: [(5, 6), (1, 2), (2, 3)]",
+                "actual": "input list after the call: [(5, 6), (1, 2), (2, 3)]",
+                "trace": [],
+                "passed": true
+              },
+              {
+                "call": "merge_intervals(inp) where inp = [(5, 6), (1, 2), (2, 3)]",
+                "expected": "returns a different list object than inp",
+                "actual": "returned a different list object",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "returns_tuples",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 2), (2, 3), (7, 8)])",
+                "expected": "returns a list in which every item has type tuple",
+                "actual": "returned [(1, 3), (7, 8)] with item types ['tuple', 'tuple']",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "typeerror_not_list",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals(None)",
+                "expected": "raises TypeError",
+                "actual": "raised TypeError: Input must be a list of intervals. (as expected)",
+                "trace": [],
+                "passed": true
+              },
+              {
+                "call": "merge_intervals(((1, 2),))",
+                "expected": "raises TypeError",
+                "actual": "raised TypeError: Input must be a list of intervals. (as expected)",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "typeerror_bad_element",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 2), (3,)])",
+                "expected": "raises TypeError",
+                "actual": "raised TypeError: Each interval must be a tuple of exactly two integers. (as expected)",
+                "trace": [],
+                "passed": true
+              },
+              {
+                "call": "merge_intervals([(1, 'a')])",
+                "expected": "raises TypeError",
+                "actual": "raised TypeError: '>' not supported between instances of 'int' and 'str' (as expected)",
+                "trace": [],
+                "passed": true
+              },
+              {
+                "call": "merge_intervals([(1, 2), [3, 4]])",
+                "expected": "raises TypeError",
+                "actual": "raised TypeError: Each interval must be a tuple of exactly two integers. (as expected)",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "valueerror_start_gt_end",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(5, 1)])",
+                "expected": "raises ValueError",
+                "actual": "raised ValueError: Interval start must not be greater than end. (as expected)",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "validation_applies_to_all",
+            "passed": true,
+            "checks": [
+              {
+                "call": "merge_intervals([(1, 2), (9, 3)])",
+                "expected": "raises ValueError",
+                "actual": "raised ValueError: Interval start must not be greater than end. (as expected)",
+                "trace": [],
+                "passed": true
+              }
+            ]
+          },
+          {
+            "name": "typeerror_non_int_values",
+            "passed": false,
+            "checks": [
+              {
+                "call": "merge_intervals([(1.5, 2.5)])",
+                "expected": "raises TypeError",
+                "actual": "returned [(1.5, 2.5)] without raising",
+                "trace": [],
+                "passed": false
+              },
+              {
+                "call": "merge_intervals([('a', 'b')])",
+                "expected": "raises TypeError",
+                "actual": "returned [('a', 'b')] without raising",
+                "trace": [],
+                "passed": false
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "ok": true,
+  "reference_good_sanity": {
+    "passed": 14,
+    "equivalent": true
+  },
+  "prior_files_unchanged": true
+}

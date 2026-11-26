@@ -1,0 +1,889 @@
+{
+  "requests": [
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "role": "warmup",
+      "label": "warmup",
+      "http_status": 200,
+      "latency_s": 6.465,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Reply briefly."
+          },
+          {
+            "role": "user",
+            "content": "Reply with the single word OK."
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 8
+      },
+      "content": "OK",
+      "finish_reason": "stop",
+      "prompt_tokens": 23,
+      "completion_tokens": 1,
+      "total_tokens": 24,
+      "reported_cost_usd": 4.11e-06,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "role": "warmup",
+      "label": "warmup",
+      "http_status": 200,
+      "latency_s": 7.703,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Reply briefly."
+          },
+          {
+            "role": "user",
+            "content": "Reply with the single word OK."
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 8
+      },
+      "content": "OK",
+      "finish_reason": "stop",
+      "prompt_tokens": 23,
+      "completion_tokens": 1,
+      "total_tokens": 24,
+      "reported_cost_usd": 1.644e-05,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "role": "generator",
+      "label": "gen_initial",
+      "http_status": 200,
+      "latency_s": 5.543,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are an expert Python engineer. Follow the requirements exactly."
+          },
+          {
+            "role": "user",
+            "content": "Implement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\nReturn the complete code in a single ```python block, followed by an explanation of at most 3 sentences."
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1500
+      },
+      "content": "```python\nfrom typing import List, Tuple\n\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    \"\"\"\n    Merges overlapping or touching intervals in a list of (start, end) tuples.\n\n    :param intervals: List of (start, end) tuples of integers.\n    :return: A new list of merged (start, end) tuples, sorted by start.\n    \"\"\"\n    if not isinstance(intervals, list):\n        raise TypeError(\"Input must be a list of intervals.\")\n    for interval in intervals:\n        if not isinstance(interval, tuple) or len(interval) != 2:\n            raise TypeError(\"Each interval must be a tuple of two integers.\")\n        if not all(isinstance(x, int) for x in interval):\n            raise TypeError(\"Each interval must be a tuple of integers.\")\n        if interval[0] > interval[1]:\n            raise ValueError(\"Interval start must not be greater than end.\")\n\n    intervals.sort(key=lambda x: x[0])\n    merged = []\n    for current in intervals:\n        if not merged or merged[-1][1] < current[0]:\n            merged.append(current)\n        else:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], current[1]))\n    return merged\n\ndef run_tests():\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\n    assert merge_intervals([(6, 8), (1, 9), (2, 4), (4, 7)]) == [(1, 9)]\n    assert merge_intervals([]) == []\n    assert merge_intervals([(5, 5)]) == [(5, 5)]\n\nif __name__ == \"__main__\":\n    run_tests()\n```\n\nThis function first validates the input and sorts the intervals by their start times. It then iterates through the sorted intervals, merging overlapping or touching intervals into a single interval. The function ensures that the input is a list of tuples with exactly two integers and that the start of each interval is not greater than its end.",
+      "finish_reason": "stop",
+      "prompt_tokens": 278,
+      "completion_tokens": 489,
+      "total_tokens": 767,
+      "reported_cost_usd": 0.00014506,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "role": "generator",
+      "label": "gen_initial",
+      "http_status": 200,
+      "latency_s": 7.246,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are an expert Python engineer. Follow the requirements exactly."
+          },
+          {
+            "role": "user",
+            "content": "Implement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\nReturn the complete code in a single ```python block, followed by an explanation of at most 3 sentences."
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1500
+      },
+      "content": "```python\nfrom typing import List, Tuple\n\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    \"\"\"\n    Merge overlapping or touching intervals in a list of (start, end) tuples.\n    \n    Parameters:\n    intervals (List[Tuple[int, int]]): A list of (start, end) tuples.\n    \n    Returns:\n    List[Tuple[int, int]]: A new list of merged (start, end) tuples.\n    \n    Raises:\n    TypeError: If intervals is not a list or any element is not a tuple of exactly two integers.\n    ValueError: If any interval has start > end.\n    \"\"\"\n    if not isinstance(intervals, list):\n        raise TypeError(\"Input must be a list of intervals.\")\n    \n    merged = []\n    for interval in intervals:\n        if not isinstance(interval, tuple) or len(interval) != 2:\n            raise TypeError(\"Each interval must be a tuple of exactly two integers.\")\n        if interval[0] > interval[1]:\n            raise ValueError(\"Interval start must not be greater than end.\")\n        \n        if not merged or merged[-1][1] < interval[0]:\n            merged.append(interval)\n        else:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], interval[1]))\n    \n    return merged\n\ndef run_tests():\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\n    assert merge_intervals([]) == []\n    assert merge_intervals([(5, 7), (1, 3), (2, 4)]) == [(1, 4), (5, 7)]\n    try:\n        merge_intervals(\"not a list\")\n    except TypeError as e:\n        assert str(e) == \"Input must be a list of intervals.\"\n    try:\n        merge_intervals([(1, 3), (2, \"not an int\")])\n    except TypeError as e:\n        assert str(e) == \"Each interval must be a tuple of exactly two integers.\"\n    try:\n        merge_intervals([(1, 3), (4, 2)])\n    except ValueError as e:\n        assert str(e) == \"Interval start must not be greater than end.\"\n\nif __name__ == \"__main__\":\n    run_tests()\n```\n\nExplanation:\nThe `merge_intervals` function takes a list of (start, end) tuples and merges overlapping or touching intervals. It first checks the input type and validity, then iterates through the intervals to merge them as needed. The `run_tests` function includes several assertions to verify the correctness of the `merge_intervals` function.",
+      "finish_reason": "stop",
+      "prompt_tokens": 278,
+      "completion_tokens": 601,
+      "total_tokens": 879,
+      "reported_cost_usd": 0.00066984,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "role": "critic",
+      "label": "critic_flawed_prompt_json",
+      "http_status": 200,
+      "latency_s": 2.703,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a strict, accurate code reviewer. Report only real defects that violate the stated requirements. Do not invent problems."
+          },
+          {
+            "role": "user",
+            "content": "Requirements the code must satisfy:\nImplement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\n\n\nCode under review:\n```python\ndef merge_intervals(intervals):\n    intervals.sort()\n    merged = [intervals[0]]\n    for start, end in intervals[1:]:\n        last_start, last_end = merged[-1]\n        if start < last_end:\n            merged[-1] = (last_start, end)\n        else:\n            merged.append((start, end))\n    return merged\n```\n\nIdentify genuine defects with respect to the requirements, explain why each is a defect, and suggest concrete fixes.\n\nRespond with ONLY a JSON object (no markdown fences, no prose) with exactly these keys:\n{\"status\": \"issues_found\" or \"no_issues\",\n \"identified_issues\": [list of strings, each \"<defect> - <why it violates the requirements>\"],\n \"suggested_changes\": [list of strings, each a concrete fix],\n \"confidence\": number between 0 and 1}"
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1200
+      },
+      "content": "{\"status\": \"issues_found\",\n \"identified_issues\": [\"Function does not check if elements are tuples of exactly two integers\",\n                       \"Function does not check if start < end in each interval\",\n                       \"Function does not sort intervals by start\",\n                       \"Function modifies the input list, violating the requirement\"],\n \"suggested_changes\": [\"Add a check for type and length of each interval before processing\",\n                       \"Add a check for start < end in each interval\",\n                       \"Sort intervals by start before processing\",\n                       \"Create a copy of intervals at the beginning and process the copy\"],\n \"confidence\": 0.95}",
+      "finish_reason": "stop",
+      "prompt_tokens": 460,
+      "completion_tokens": 126,
+      "total_tokens": 586,
+      "reported_cost_usd": 0.0001034,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "role": "critic",
+      "label": "critic_flawed_prompt_json",
+      "http_status": 200,
+      "latency_s": 6.155,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a strict, accurate code reviewer. Report only real defects that violate the stated requirements. Do not invent problems."
+          },
+          {
+            "role": "user",
+            "content": "Requirements the code must satisfy:\nImplement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\n\n\nCode under review:\n```python\ndef merge_intervals(intervals):\n    intervals.sort()\n    merged = [intervals[0]]\n    for start, end in intervals[1:]:\n        last_start, last_end = merged[-1]\n        if start < last_end:\n            merged[-1] = (last_start, end)\n        else:\n            merged.append((start, end))\n    return merged\n```\n\nIdentify genuine defects with respect to the requirements, explain why each is a defect, and suggest concrete fixes.\n\nRespond with ONLY a JSON object (no markdown fences, no prose) with exactly these keys:\n{\"status\": \"issues_found\" or \"no_issues\",\n \"identified_issues\": [list of strings, each \"<defect> - <why it violates the requirements>\"],\n \"suggested_changes\": [list of strings, each a concrete fix],\n \"confidence\": number between 0 and 1}"
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1200
+      },
+      "content": "```json\n{\n  \"status\": \"issues_found\",\n  \"identified_issues\": [\n    \"The function does not check if the input is a list or if any element is a tuple of exactly two integers. - This violates the requirement to raise a TypeError if the input is not a list or if any element is not a tuple of exactly two integers.\",\n    \"The function does not check if any interval has start > end. - This violates the requirement to raise a ValueError if any interval has start > end.\",\n    \"The function does not sort the intervals by start. - This violates the requirement to return a NEW list of (start, end) tuples, sorted by start.\"\n  ],\n  \"suggested_changes\": [\n    \"Add a check at the beginning of the function to ensure that `intervals` is a list. If not, raise a TypeError.\",\n    \"Add a check to ensure that each element in `intervals` is a tuple of exactly two integers. If not, raise a TypeError.\",\n    \"Add a check to ensure that each interval has start <= end. If not, raise a ValueError.\",\n    \"Sort the `intervals` list by the start of each interval before processing.\"\n  ],\n  \"confidence\": 1\n}\n```",
+      "finish_reason": "stop",
+      "prompt_tokens": 460,
+      "completion_tokens": 257,
+      "total_tokens": 717,
+      "reported_cost_usd": 0.0005184,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "role": "critic",
+      "label": "critic_on_Qwen2.5-7B-I",
+      "http_status": 200,
+      "latency_s": 1.594,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a strict, accurate code reviewer. Report only real defects that violate the stated requirements. Do not invent problems."
+          },
+          {
+            "role": "user",
+            "content": "Requirements the code must satisfy:\nImplement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\n\n\nCode under review:\n```python\nfrom typing import List, Tuple\n\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    \"\"\"\n    Merges overlapping or touching intervals in a list of (start, end) tuples.\n\n    :param intervals: List of (start, end) tuples of integers.\n    :return: A new list of merged (start, end) tuples, sorted by start.\n    \"\"\"\n    if not isinstance(intervals, list):\n        raise TypeError(\"Input must be a list of intervals.\")\n    for interval in intervals:\n        if not isinstance(interval, tuple) or len(interval) != 2:\n            raise TypeError(\"Each interval must be a tuple of two integers.\")\n        if not all(isinstance(x, int) for x in interval):\n            raise TypeError(\"Each interval must be a tuple of integers.\")\n        if interval[0] > interval[1]:\n            raise ValueError(\"Interval start must not be greater than end.\")\n\n    intervals.sort(key=lambda x: x[0])\n    merged = []\n    for current in intervals:\n        if not merged or merged[-1][1] < current[0]:\n            merged.append(current)\n        else:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], current[1]))\n    return merged\n\ndef run_tests():\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\n    assert merge_intervals([(6, 8), (1, 9), (2, 4), (4, 7)]) == [(1, 9)]\n    assert merge_intervals([]) == []\n    assert merge_intervals([(5, 5)]) == [(5, 5)]\n\nif __name__ == \"__main__\":\n    run_tests()\n```\n\nIdentify genuine defects with respect to the requirements, explain why each is a defect, and suggest concrete fixes.\n\nRespond with ONLY a JSON object (no markdown fences, no prose) with exactly these keys:\n{\"status\": \"issues_found\" or \"no_issues\",\n \"identified_issues\": [list of strings, each \"<defect> - <why it violates the requirements>\"],\n \"suggested_changes\": [list of strings, each a concrete fix],\n \"confidence\": number between 0 and 1}"
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1200
+      },
+      "content": "{\"status\": \"no_issues\",\n \"identified_issues\": [],\n \"suggested_changes\": [],\n \"confidence\": 1}",
+      "finish_reason": "stop",
+      "prompt_tokens": 807,
+      "completion_tokens": 24,
+      "total_tokens": 831,
+      "reported_cost_usd": 0.00014199,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "role": "generator",
+      "label": "revise_GQwen2._CQwen2.",
+      "http_status": 200,
+      "latency_s": 5.136,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are an expert Python engineer. Follow the requirements exactly."
+          },
+          {
+            "role": "user",
+            "content": "Implement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\nReturn the complete code in a single ```python block, followed by an explanation of at most 3 sentences.\n\nHere is your previous solution:\n```python\nfrom typing import List, Tuple\n\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    \"\"\"\n    Merges overlapping or touching intervals in a list of (start, end) tuples.\n\n    :param intervals: List of (start, end) tuples of integers.\n    :return: A new list of merged (start, end) tuples, sorted by start.\n    \"\"\"\n    if not isinstance(intervals, list):\n        raise TypeError(\"Input must be a list of intervals.\")\n    for interval in intervals:\n        if not isinstance(interval, tuple) or len(interval) != 2:\n            raise TypeError(\"Each interval must be a tuple of two integers.\")\n        if not all(isinstance(x, int) for x in interval):\n            raise TypeError(\"Each interval must be a tuple of integers.\")\n        if interval[0] > interval[1]:\n            raise ValueError(\"Interval start must not be greater than end.\")\n\n    intervals.sort(key=lambda x: x[0])\n    merged = []\n    for current in intervals:\n        if not merged or merged[-1][1] < current[0]:\n            merged.append(current)\n        else:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], current[1]))\n    return merged\n\ndef run_tests():\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\n    assert merge_intervals([(6, 8), (1, 9), (2, 4), (4, 7)]) == [(1, 9)]\n    assert merge_intervals([]) == []\n    assert merge_intervals([(5, 5)]) == [(5, 5)]\n\nif __name__ == \"__main__\":\n    run_tests()\n```\n\nA reviewer returned the following feedback (verbatim):\n<feedback>\n{\"status\": \"no_issues\",\n \"identified_issues\": [],\n \"suggested_changes\": [],\n \"confidence\": 1}\n</feedback>\n\nRevise the solution. Fix every genuine defect the feedback identifies, ignore anything in the feedback that is incorrect, and keep all requirements above satisfied. Return the complete revised code in a single ```python block (including tests as specified), then at most 3 sentences describing what you changed."
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1800
+      },
+      "content": "```python\nfrom typing import List, Tuple\n\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    \"\"\"\n    Merges overlapping or touching intervals in a list of (start, end) tuples.\n\n    :param intervals: List of (start, end) tuples of integers.\n    :return: A new list of merged (start, end) tuples, sorted by start.\n    \"\"\"\n    if not isinstance(intervals, list):\n        raise TypeError(\"Input must be a list of intervals.\")\n    for interval in intervals:\n        if not isinstance(interval, tuple) or len(interval) != 2:\n            raise TypeError(\"Each interval must be a tuple of two integers.\")\n        if not all(isinstance(x, int) for x in interval):\n            raise TypeError(\"Each interval must be a tuple of integers.\")\n        if interval[0] > interval[1]:\n            raise ValueError(\"Interval start must not be greater than end.\")\n\n    intervals.sort(key=lambda x: x[0])\n    merged = []\n    for current in intervals:\n        if not merged or merged[-1][1] < current[0]:\n            merged.append(current)\n        else:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], current[1]))\n    return merged\n\ndef run_tests():\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\n    assert merge_intervals([(6, 8), (1, 9), (2, 4), (4, 7)]) == [(1, 9)]\n    assert merge_intervals([]) == []\n    assert merge_intervals([(5, 5)]) == [(5, 5)]\n\nif __name__ == \"__main__\":\n    run_tests()\n```\n\nNo changes were necessary as the provided solution already met all the requirements and passed the reviewer's check.",
+      "finish_reason": "stop",
+      "prompt_tokens": 806,
+      "completion_tokens": 446,
+      "total_tokens": 1252,
+      "reported_cost_usd": 0.00022622,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "role": "critic",
+      "label": "critic_on_Qwen2.5-7B-I",
+      "http_status": 200,
+      "latency_s": 3.914,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a strict, accurate code reviewer. Report only real defects that violate the stated requirements. Do not invent problems."
+          },
+          {
+            "role": "user",
+            "content": "Requirements the code must satisfy:\nImplement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\n\n\nCode under review:\n```python\nfrom typing import List, Tuple\n\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    \"\"\"\n    Merges overlapping or touching intervals in a list of (start, end) tuples.\n\n    :param intervals: List of (start, end) tuples of integers.\n    :return: A new list of merged (start, end) tuples, sorted by start.\n    \"\"\"\n    if not isinstance(intervals, list):\n        raise TypeError(\"Input must be a list of intervals.\")\n    for interval in intervals:\n        if not isinstance(interval, tuple) or len(interval) != 2:\n            raise TypeError(\"Each interval must be a tuple of two integers.\")\n        if not all(isinstance(x, int) for x in interval):\n            raise TypeError(\"Each interval must be a tuple of integers.\")\n        if interval[0] > interval[1]:\n            raise ValueError(\"Interval start must not be greater than end.\")\n\n    intervals.sort(key=lambda x: x[0])\n    merged = []\n    for current in intervals:\n        if not merged or merged[-1][1] < current[0]:\n            merged.append(current)\n        else:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], current[1]))\n    return merged\n\ndef run_tests():\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\n    assert merge_intervals([(6, 8), (1, 9), (2, 4), (4, 7)]) == [(1, 9)]\n    assert merge_intervals([]) == []\n    assert merge_intervals([(5, 5)]) == [(5, 5)]\n\nif __name__ == \"__main__\":\n    run_tests()\n```\n\nIdentify genuine defects with respect to the requirements, explain why each is a defect, and suggest concrete fixes.\n\nRespond with ONLY a JSON object (no markdown fences, no prose) with exactly these keys:\n{\"status\": \"issues_found\" or \"no_issues\",\n \"identified_issues\": [list of strings, each \"<defect> - <why it violates the requirements>\"],\n \"suggested_changes\": [list of strings, each a concrete fix],\n \"confidence\": number between 0 and 1}"
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1200
+      },
+      "content": "```json\n{\n  \"status\": \"no_issues\",\n  \"identified_issues\": [],\n  \"suggested_changes\": [],\n  \"confidence\": 1\n}\n```",
+      "finish_reason": "stop",
+      "prompt_tokens": 807,
+      "completion_tokens": 34,
+      "total_tokens": 841,
+      "reported_cost_usd": 0.00057596,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "role": "generator",
+      "label": "revise_GQwen2._CQwen2.",
+      "http_status": 200,
+      "latency_s": 5.042,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are an expert Python engineer. Follow the requirements exactly."
+          },
+          {
+            "role": "user",
+            "content": "Implement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\nReturn the complete code in a single ```python block, followed by an explanation of at most 3 sentences.\n\nHere is your previous solution:\n```python\nfrom typing import List, Tuple\n\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    \"\"\"\n    Merges overlapping or touching intervals in a list of (start, end) tuples.\n\n    :param intervals: List of (start, end) tuples of integers.\n    :return: A new list of merged (start, end) tuples, sorted by start.\n    \"\"\"\n    if not isinstance(intervals, list):\n        raise TypeError(\"Input must be a list of intervals.\")\n    for interval in intervals:\n        if not isinstance(interval, tuple) or len(interval) != 2:\n            raise TypeError(\"Each interval must be a tuple of two integers.\")\n        if not all(isinstance(x, int) for x in interval):\n            raise TypeError(\"Each interval must be a tuple of integers.\")\n        if interval[0] > interval[1]:\n            raise ValueError(\"Interval start must not be greater than end.\")\n\n    intervals.sort(key=lambda x: x[0])\n    merged = []\n    for current in intervals:\n        if not merged or merged[-1][1] < current[0]:\n            merged.append(current)\n        else:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], current[1]))\n    return merged\n\ndef run_tests():\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\n    assert merge_intervals([(6, 8), (1, 9), (2, 4), (4, 7)]) == [(1, 9)]\n    assert merge_intervals([]) == []\n    assert merge_intervals([(5, 5)]) == [(5, 5)]\n\nif __name__ == \"__main__\":\n    run_tests()\n```\n\nA reviewer returned the following feedback (verbatim):\n<feedback>\n```json\n{\n  \"status\": \"no_issues\",\n  \"identified_issues\": [],\n  \"suggested_changes\": [],\n  \"confidence\": 1\n}\n```\n</feedback>\n\nRevise the solution. Fix every genuine defect the feedback identifies, ignore anything in the feedback that is incorrect, and keep all requirements above satisfied. Return the complete revised code in a single ```python block (including tests as specified), then at most 3 sentences describing what you changed."
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1800
+      },
+      "content": "```python\nfrom typing import List, Tuple\n\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    \"\"\"\n    Merges overlapping or touching intervals in a list of (start, end) tuples.\n\n    :param intervals: List of (start, end) tuples of integers.\n    :return: A new list of merged (start, end) tuples, sorted by start.\n    \"\"\"\n    if not isinstance(intervals, list):\n        raise TypeError(\"Input must be a list of intervals.\")\n    for interval in intervals:\n        if not isinstance(interval, tuple) or len(interval) != 2:\n            raise TypeError(\"Each interval must be a tuple of two integers.\")\n        if not all(isinstance(x, int) for x in interval):\n            raise TypeError(\"Each interval must be a tuple of integers.\")\n        if interval[0] > interval[1]:\n            raise ValueError(\"Interval start must not be greater than end.\")\n\n    intervals.sort(key=lambda x: x[0])\n    merged = []\n    for current in intervals:\n        if not merged or merged[-1][1] < current[0]:\n            merged.append(current)\n        else:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], current[1]))\n    return merged\n\ndef run_tests():\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\n    assert merge_intervals([(6, 8), (1, 9), (2, 4), (4, 7)]) == [(1, 9)]\n    assert merge_intervals([]) == []\n    assert merge_intervals([(5, 5)]) == [(5, 5)]\n\nif __name__ == \"__main__\":\n    run_tests()\n```\n\nNo changes were necessary as the provided solution already met all the requirements and passed the test cases.",
+      "finish_reason": "stop",
+      "prompt_tokens": 817,
+      "completion_tokens": 445,
+      "total_tokens": 1262,
+      "reported_cost_usd": 0.00022789,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "role": "critic",
+      "label": "critic_on_Qwen2.5-Code",
+      "http_status": 200,
+      "latency_s": 1.539,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a strict, accurate code reviewer. Report only real defects that violate the stated requirements. Do not invent problems."
+          },
+          {
+            "role": "user",
+            "content": "Requirements the code must satisfy:\nImplement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\n\n\nCode under review:\n```python\nfrom typing import List, Tuple\n\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    \"\"\"\n    Merge overlapping or touching intervals in a list of (start, end) tuples.\n    \n    Parameters:\n    intervals (List[Tuple[int, int]]): A list of (start, end) tuples.\n    \n    Returns:\n    List[Tuple[int, int]]: A new list of merged (start, end) tuples.\n    \n    Raises:\n    TypeError: If intervals is not a list or any element is not a tuple of exactly two integers.\n    ValueError: If any interval has start > end.\n    \"\"\"\n    if not isinstance(intervals, list):\n        raise TypeError(\"Input must be a list of intervals.\")\n    \n    merged = []\n    for interval in intervals:\n        if not isinstance(interval, tuple) or len(interval) != 2:\n            raise TypeError(\"Each interval must be a tuple of exactly two integers.\")\n        if interval[0] > interval[1]:\n            raise ValueError(\"Interval start must not be greater than end.\")\n        \n        if not merged or merged[-1][1] < interval[0]:\n            merged.append(interval)\n        else:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], interval[1]))\n    \n    return merged\n\ndef run_tests():\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\n    assert merge_intervals([]) == []\n    assert merge_intervals([(5, 7), (1, 3), (2, 4)]) == [(1, 4), (5, 7)]\n    try:\n        merge_intervals(\"not a list\")\n    except TypeError as e:\n        assert str(e) == \"Input must be a list of intervals.\"\n    try:\n        merge_intervals([(1, 3), (2, \"not an int\")])\n    except TypeError as e:\n        assert str(e) == \"Each interval must be a tuple of exactly two integers.\"\n    try:\n        merge_intervals([(1, 3), (4, 2)])\n    except ValueError as e:\n        assert str(e) == \"Interval start must not be greater than end.\"\n\nif __name__ == \"__main__\":\n    run_tests()\n```\n\nIdentify genuine defects with respect to the requirements, explain why each is a defect, and suggest concrete fixes.\n\nRespond with ONLY a JSON object (no markdown fences, no prose) with exactly these keys:\n{\"status\": \"issues_found\" or \"no_issues\",\n \"identified_issues\": [list of strings, each \"<defect> - <why it violates the requirements>\"],\n \"suggested_changes\": [list of strings, each a concrete fix],\n \"confidence\": number between 0 and 1}"
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1200
+      },
+      "content": "{\"status\": \"no_issues\",\n \"identified_issues\": [],\n \"suggested_changes\": [],\n \"confidence\": 1}",
+      "finish_reason": "stop",
+      "prompt_tokens": 915,
+      "completion_tokens": 24,
+      "total_tokens": 939,
+      "reported_cost_usd": 0.00016035,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "role": "generator",
+      "label": "revise_GQwen2._CQwen2.",
+      "http_status": 200,
+      "latency_s": 9.674,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are an expert Python engineer. Follow the requirements exactly."
+          },
+          {
+            "role": "user",
+            "content": "Implement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\nReturn the complete code in a single ```python block, followed by an explanation of at most 3 sentences.\n\nHere is your previous solution:\n```python\nfrom typing import List, Tuple\n\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    \"\"\"\n    Merge overlapping or touching intervals in a list of (start, end) tuples.\n    \n    Parameters:\n    intervals (List[Tuple[int, int]]): A list of (start, end) tuples.\n    \n    Returns:\n    List[Tuple[int, int]]: A new list of merged (start, end) tuples.\n    \n    Raises:\n    TypeError: If intervals is not a list or any element is not a tuple of exactly two integers.\n    ValueError: If any interval has start > end.\n    \"\"\"\n    if not isinstance(intervals, list):\n        raise TypeError(\"Input must be a list of intervals.\")\n    \n    merged = []\n    for interval in intervals:\n        if not isinstance(interval, tuple) or len(interval) != 2:\n            raise TypeError(\"Each interval must be a tuple of exactly two integers.\")\n        if interval[0] > interval[1]:\n            raise ValueError(\"Interval start must not be greater than end.\")\n        \n        if not merged or merged[-1][1] < interval[0]:\n            merged.append(interval)\n        else:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], interval[1]))\n    \n    return merged\n\ndef run_tests():\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\n    assert merge_intervals([]) == []\n    assert merge_intervals([(5, 7), (1, 3), (2, 4)]) == [(1, 4), (5, 7)]\n    try:\n        merge_intervals(\"not a list\")\n    except TypeError as e:\n        assert str(e) == \"Input must be a list of intervals.\"\n    try:\n        merge_intervals([(1, 3), (2, \"not an int\")])\n    except TypeError as e:\n        assert str(e) == \"Each interval must be a tuple of exactly two integers.\"\n    try:\n        merge_intervals([(1, 3), (4, 2)])\n    except ValueError as e:\n        assert str(e) == \"Interval start must not be greater than end.\"\n\nif __name__ == \"__main__\":\n    run_tests()\n```\n\nA reviewer returned the following feedback (verbatim):\n<feedback>\n{\"status\": \"no_issues\",\n \"identified_issues\": [],\n \"suggested_changes\": [],\n \"confidence\": 1}\n</feedback>\n\nRevise the solution. Fix every genuine defect the feedback identifies, ignore anything in the feedback that is incorrect, and keep all requirements above satisfied. Return the complete revised code in a single ```python block (including tests as specified), then at most 3 sentences describing what you changed."
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1800
+      },
+      "content": "```python\nfrom typing import List, Tuple\n\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    \"\"\"\n    Merge overlapping or touching intervals in a list of (start, end) tuples.\n    \n    Parameters:\n    intervals (List[Tuple[int, int]]): A list of (start, end) tuples.\n    \n    Returns:\n    List[Tuple[int, int]]: A new list of merged (start, end) tuples.\n    \n    Raises:\n    TypeError: If intervals is not a list or any element is not a tuple of exactly two integers.\n    ValueError: If any interval has start > end.\n    \"\"\"\n    if not isinstance(intervals, list):\n        raise TypeError(\"Input must be a list of intervals.\")\n    \n    merged = []\n    for interval in intervals:\n        if not isinstance(interval, tuple) or len(interval) != 2:\n            raise TypeError(\"Each interval must be a tuple of exactly two integers.\")\n        if not isinstance(interval[0], int) or not isinstance(interval[1], int):\n            raise TypeError(\"Each interval must be a tuple of exactly two integers.\")\n        if interval[0] > interval[1]:\n            raise ValueError(\"Interval start must not be greater than end.\")\n        \n        if not merged or merged[-1][1] < interval[0]:\n            merged.append(interval)\n        else:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], interval[1]))\n    \n    return merged\n\ndef run_tests():\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\n    assert merge_intervals([]) == []\n    assert merge_intervals([(5, 7), (1, 3), (2, 4)]) == [(1, 4), (5, 7)]\n    try:\n        merge_intervals(\"not a list\")\n    except TypeError as e:\n        assert str(e) == \"Input must be a list of intervals.\"\n    try:\n        merge_intervals([(1, 3), (2, \"not an int\")])\n    except TypeError as e:\n        assert str(e) == \"Each interval must be a tuple of exactly two integers.\"\n    try:\n        merge_intervals([(1, 3), (4, 2)])\n    except ValueError as e:\n        assert str(e) == \"Interval start must not be greater than end.\"\n\nif __name__ == \"__main__\":\n    run_tests()\n```\n\nNo changes were necessary based on the feedback provided. The original solution already satisfied all the requirements and passed all the tests.",
+      "finish_reason": "stop",
+      "prompt_tokens": 914,
+      "completion_tokens": 592,
+      "total_tokens": 1506,
+      "reported_cost_usd": 0.00109512,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "role": "critic",
+      "label": "critic_on_Qwen2.5-Code",
+      "http_status": 200,
+      "latency_s": 2.018,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a strict, accurate code reviewer. Report only real defects that violate the stated requirements. Do not invent problems."
+          },
+          {
+            "role": "user",
+            "content": "Requirements the code must satisfy:\nImplement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\n\n\nCode under review:\n```python\nfrom typing import List, Tuple\n\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    \"\"\"\n    Merge overlapping or touching intervals in a list of (start, end) tuples.\n    \n    Parameters:\n    intervals (List[Tuple[int, int]]): A list of (start, end) tuples.\n    \n    Returns:\n    List[Tuple[int, int]]: A new list of merged (start, end) tuples.\n    \n    Raises:\n    TypeError: If intervals is not a list or any element is not a tuple of exactly two integers.\n    ValueError: If any interval has start > end.\n    \"\"\"\n    if not isinstance(intervals, list):\n        raise TypeError(\"Input must be a list of intervals.\")\n    \n    merged = []\n    for interval in intervals:\n        if not isinstance(interval, tuple) or len(interval) != 2:\n            raise TypeError(\"Each interval must be a tuple of exactly two integers.\")\n        if interval[0] > interval[1]:\n            raise ValueError(\"Interval start must not be greater than end.\")\n        \n        if not merged or merged[-1][1] < interval[0]:\n            merged.append(interval)\n        else:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], interval[1]))\n    \n    return merged\n\ndef run_tests():\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\n    assert merge_intervals([]) == []\n    assert merge_intervals([(5, 7), (1, 3), (2, 4)]) == [(1, 4), (5, 7)]\n    try:\n        merge_intervals(\"not a list\")\n    except TypeError as e:\n        assert str(e) == \"Input must be a list of intervals.\"\n    try:\n        merge_intervals([(1, 3), (2, \"not an int\")])\n    except TypeError as e:\n        assert str(e) == \"Each interval must be a tuple of exactly two integers.\"\n    try:\n        merge_intervals([(1, 3), (4, 2)])\n    except ValueError as e:\n        assert str(e) == \"Interval start must not be greater than end.\"\n\nif __name__ == \"__main__\":\n    run_tests()\n```\n\nIdentify genuine defects with respect to the requirements, explain why each is a defect, and suggest concrete fixes.\n\nRespond with ONLY a JSON object (no markdown fences, no prose) with exactly these keys:\n{\"status\": \"issues_found\" or \"no_issues\",\n \"identified_issues\": [list of strings, each \"<defect> - <why it violates the requirements>\"],\n \"suggested_changes\": [list of strings, each a concrete fix],\n \"confidence\": number between 0 and 1}"
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1200
+      },
+      "content": "```json\n{\n  \"status\": \"no_issues\",\n  \"identified_issues\": [],\n  \"suggested_changes\": [],\n  \"confidence\": 1\n}\n```",
+      "finish_reason": "stop",
+      "prompt_tokens": 915,
+      "completion_tokens": 34,
+      "total_tokens": 949,
+      "reported_cost_usd": 0.0006494,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "role": "generator",
+      "label": "revise_GQwen2._CQwen2.",
+      "http_status": 200,
+      "latency_s": 8.641,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are an expert Python engineer. Follow the requirements exactly."
+          },
+          {
+            "role": "user",
+            "content": "Implement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\nReturn the complete code in a single ```python block, followed by an explanation of at most 3 sentences.\n\nHere is your previous solution:\n```python\nfrom typing import List, Tuple\n\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    \"\"\"\n    Merge overlapping or touching intervals in a list of (start, end) tuples.\n    \n    Parameters:\n    intervals (List[Tuple[int, int]]): A list of (start, end) tuples.\n    \n    Returns:\n    List[Tuple[int, int]]: A new list of merged (start, end) tuples.\n    \n    Raises:\n    TypeError: If intervals is not a list or any element is not a tuple of exactly two integers.\n    ValueError: If any interval has start > end.\n    \"\"\"\n    if not isinstance(intervals, list):\n        raise TypeError(\"Input must be a list of intervals.\")\n    \n    merged = []\n    for interval in intervals:\n        if not isinstance(interval, tuple) or len(interval) != 2:\n            raise TypeError(\"Each interval must be a tuple of exactly two integers.\")\n        if interval[0] > interval[1]:\n            raise ValueError(\"Interval start must not be greater than end.\")\n        \n        if not merged or merged[-1][1] < interval[0]:\n            merged.append(interval)\n        else:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], interval[1]))\n    \n    return merged\n\ndef run_tests():\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\n    assert merge_intervals([]) == []\n    assert merge_intervals([(5, 7), (1, 3), (2, 4)]) == [(1, 4), (5, 7)]\n    try:\n        merge_intervals(\"not a list\")\n    except TypeError as e:\n        assert str(e) == \"Input must be a list of intervals.\"\n    try:\n        merge_intervals([(1, 3), (2, \"not an int\")])\n    except TypeError as e:\n        assert str(e) == \"Each interval must be a tuple of exactly two integers.\"\n    try:\n        merge_intervals([(1, 3), (4, 2)])\n    except ValueError as e:\n        assert str(e) == \"Interval start must not be greater than end.\"\n\nif __name__ == \"__main__\":\n    run_tests()\n```\n\nA reviewer returned the following feedback (verbatim):\n<feedback>\n```json\n{\n  \"status\": \"no_issues\",\n  \"identified_issues\": [],\n  \"suggested_changes\": [],\n  \"confidence\": 1\n}\n```\n</feedback>\n\nRevise the solution. Fix every genuine defect the feedback identifies, ignore anything in the feedback that is incorrect, and keep all requirements above satisfied. Return the complete revised code in a single ```python block (including tests as specified), then at most 3 sentences describing what you changed."
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1800
+      },
+      "content": "```python\nfrom typing import List, Tuple\n\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\n    \"\"\"\n    Merge overlapping or touching intervals in a list of (start, end) tuples.\n    \n    Parameters:\n    intervals (List[Tuple[int, int]]): A list of (start, end) tuples.\n    \n    Returns:\n    List[Tuple[int, int]]: A new list of merged (start, end) tuples.\n    \n    Raises:\n    TypeError: If intervals is not a list or any element is not a tuple of exactly two integers.\n    ValueError: If any interval has start > end.\n    \"\"\"\n    if not isinstance(intervals, list):\n        raise TypeError(\"Input must be a list of intervals.\")\n    \n    merged = []\n    for interval in intervals:\n        if not isinstance(interval, tuple) or len(interval) != 2:\n            raise TypeError(\"Each interval must be a tuple of exactly two integers.\")\n        if not isinstance(interval[0], int) or not isinstance(interval[1], int):\n            raise TypeError(\"Each interval must contain exactly two integers.\")\n        if interval[0] > interval[1]:\n            raise ValueError(\"Interval start must not be greater than end.\")\n        \n        if not merged or merged[-1][1] < interval[0]:\n            merged.append(interval)\n        else:\n            merged[-1] = (merged[-1][0], max(merged[-1][1], interval[1]))\n    \n    return merged\n\ndef run_tests():\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\n    assert merge_intervals([]) == []\n    assert merge_intervals([(5, 7), (1, 3), (2, 4)]) == [(1, 4), (5, 7)]\n    try:\n        merge_intervals(\"not a list\")\n    except TypeError as e:\n        assert str(e) == \"Input must be a list of intervals.\"\n    try:\n        merge_intervals([(1, 3), (2, \"not an int\")])\n    except TypeError as e:\n        assert str(e) == \"Each interval must contain exactly two integers.\"\n    try:\n        merge_intervals([(1, 3), (4, 2)])\n    except ValueError as e:\n        assert str(e) == \"Interval start must not be greater than end.\"\n\nif __name__ == \"__main__\":\n    run_tests()\n```\n\n**Explanation**:\n1. The code was already correct and did not require any changes based on the provided feedback. The feedback indicated no issues, and the code met all the requirements specified in the problem statement.",
+      "finish_reason": "stop",
+      "prompt_tokens": 925,
+      "completion_tokens": 604,
+      "total_tokens": 1529,
+      "reported_cost_usd": 0.0011122,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "role": "critic",
+      "label": "struct_json_object",
+      "http_status": 200,
+      "latency_s": 3.863,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a strict, accurate code reviewer. Report only real defects that violate the stated requirements. Do not invent problems."
+          },
+          {
+            "role": "user",
+            "content": "Requirements the code must satisfy:\nImplement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\n\n\nCode under review:\n```python\ndef merge_intervals(intervals):\n    intervals.sort()\n    merged = [intervals[0]]\n    for start, end in intervals[1:]:\n        last_start, last_end = merged[-1]\n        if start < last_end:\n            merged[-1] = (last_start, end)\n        else:\n            merged.append((start, end))\n    return merged\n```\n\nReview this code against the requirements. List the genuine defects, why each is a defect, and concrete fixes."
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1200,
+        "response_format": {
+          "type": "json_object"
+        }
+      },
+      "content": "{\n    \"defects\": [\n        {\n            \"description\": \"The function does not validate the type of `intervals` or the elements within it.\",\n            \"why_a_defect\": \"The code does not check if `intervals` is a list or if each element is a tuple of exactly two integers.\",\n            \"fix\": \"Add type and value checks for `intervals` and its elements.\"\n        },\n        {\n            \"description\": \"The function does not handle the case where intervals touch (start == end of previous interval).\",\n            \"why_a_defect\": \"The current implementation only checks for overlapping intervals (start < end of previous interval).\",\n            \"fix\": \"Include a check for touching intervals (start == end of previous interval) and merge them accordingly.\"\n        },\n        {\n            \"description\": \"The function does not raise an error if an interval has a start greater than its end.\",\n            \"why_a_defect\": \"The code does not validate that each interval's start is less than or equal to its end.\",\n            \"fix\": \"Add a check to ensure that start <= end for each interval.\"\n        },\n        {\n            \"description\": \"The function modifies the original list of intervals.\",\n            \"why_a_defect\": \"The requirement states that the input list must not be modified.\",\n            \"fix\": \"Ensure that a new list is created and returned, rather than modifying the existing list.\"\n        }\n    ]\n}",
+      "finish_reason": "stop",
+      "prompt_tokens": 380,
+      "completion_tokens": 299,
+      "total_tokens": 679,
+      "reported_cost_usd": 0.0001244,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "role": "critic",
+      "label": "struct_json_schema",
+      "http_status": 200,
+      "latency_s": 4.373,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a strict, accurate code reviewer. Report only real defects that violate the stated requirements. Do not invent problems."
+          },
+          {
+            "role": "user",
+            "content": "Requirements the code must satisfy:\nImplement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\n\n\nCode under review:\n```python\ndef merge_intervals(intervals):\n    intervals.sort()\n    merged = [intervals[0]]\n    for start, end in intervals[1:]:\n        last_start, last_end = merged[-1]\n        if start < last_end:\n            merged[-1] = (last_start, end)\n        else:\n            merged.append((start, end))\n    return merged\n```\n\nReview this code against the requirements. List the genuine defects, why each is a defect, and concrete fixes."
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1200,
+        "response_format": {
+          "type": "json_schema",
+          "json_schema": {
+            "name": "code_review",
+            "strict": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "issues_found",
+                    "no_issues"
+                  ]
+                },
+                "identified_issues": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "suggested_changes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "status",
+                "identified_issues",
+                "suggested_changes",
+                "confidence"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "content": "{\n    \"status\": \"issues_found\",\n    \"identified_issues\": [\n        \"Defect 1: The function does not validate the type of `intervals` or the elements within it.\"\n            , \"Explanation: The code does not check if `intervals` is a list or if each element is a tuple of exactly two integers.\"\n            , \"Fix: Add type and value checks as per the requirements.\"\n        \n        , \"Defect 2: The function does not handle the case where intervals touch.\"\n            , \"Explanation: The current logic only checks for overlapping intervals (start < last_end). It does not handle the case where `start == last_end`.\"\n            , \"Fix: Add a condition to handle touching intervals.\"\n        \n        , \"Defect 3: The function does not raise an error if an interval has start > end.\"\n            , \"Explanation: The code does not validate that the start of each interval is not greater than the end.\"\n            , \"Fix: Add a check to ensure that `start <= end` for each interval.\"\n        \n        , \"Defect 4: The function does not return a new list, but modifies the input list.\"\n            , \"Explanation: The function uses `merged` to store the result, which is not a new list but a modified version of the input.\"\n            , \"Fix: Ensure the function returns a new list without modifying the input.\"\n    ]\n    \n    , \"suggested_changes\": [\n        \"Add type and value checks at the beginning of the function.\"\n        , \"Include a condition to handle touching intervals.\"\n        , \"Add a check to ensure `start <= end` for each interval.\"\n        , \"Ensure the function returns a new list.\"\n    ]\n    \n    , \"confidence\": 1\n}",
+      "finish_reason": "stop",
+      "prompt_tokens": 380,
+      "completion_tokens": 368,
+      "total_tokens": 748,
+      "reported_cost_usd": 0.0001382,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "role": "critic",
+      "label": "struct_json_object",
+      "http_status": 200,
+      "latency_s": 18.811,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a strict, accurate code reviewer. Report only real defects that violate the stated requirements. Do not invent problems."
+          },
+          {
+            "role": "user",
+            "content": "Requirements the code must satisfy:\nImplement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\n\n\nCode under review:\n```python\ndef merge_intervals(intervals):\n    intervals.sort()\n    merged = [intervals[0]]\n    for start, end in intervals[1:]:\n        last_start, last_end = merged[-1]\n        if start < last_end:\n            merged[-1] = (last_start, end)\n        else:\n            merged.append((start, end))\n    return merged\n```\n\nReview this code against the requirements. List the genuine defects, why each is a defect, and concrete fixes."
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1200,
+        "response_format": {
+          "type": "json_object"
+        }
+      },
+      "content": "{ \"response\": \"The code under review does not satisfy the following requirements:\\n\\n1. **Type Hinting and Docstring**: The function lacks a type hint for the input and output, and it does not have a docstring explaining the function's purpose, parameters, and return value.\\n\\n2. **Handling Overlapping and Touching Intervals**: The code does not correctly handle intervals that touch (e.g., `(1, 3)` and `(3, 5)` should merge to `(1, 5)`). The current implementation only merges intervals that overlap (i.e., `start < last_end`).\\n\\n3. **Input Validation**: The code does not check if the input is a list or if any element is a tuple of exactly two integers. It also does not check if any interval has a start greater than the end.\\n\\n4. **Input List Modification**: The code modifies the input list by sorting it, which violates the requirement that the input list must not be modified.\\n\\n5. **Empty List Handling**: The code does not handle the case where the input list is empty, which should return an empty list.\\n\\n**Fixes**:\\n\\n1. **Add Type Hinting and Docstring**:\\n   ```python\\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\\n    \\\"\\\"\\\"Merge overlapping or touching intervals in a list of (start, end) tuples.\\n\\n    Parameters:\\n    intervals (List[Tuple[int, int]]): A list of (start, end) tuples of integers.\\n\\n    Returns:\\n    List[Tuple[int, int]]: A new list of merged (start, end) tuples, sorted by start.\\n    \\\"\\\"\\\"\\n    # Function implementation goes here\\n    ````\\n\\n2. **Handle Overlapping and Touching Intervals**:\\n   ```python\\n   for start, end in intervals[1:]:\\n       last_start, last_end = merged[-1]\\n       if start <= last_end:\\n           merged[-1] = (last_start, max(last_end, end))\\n       else:\\n           merged.append((start, end))\\n   ````\\n\\n3. **Input Validation**:\\n   ```python\\n   if not isinstance(intervals, list):\\n       raise TypeError('intervals must be a list')\\n   for interval in intervals:\\n       if not isinstance(interval, tuple) or len(interval) != 2 or not all(isinstance(x, int) for x in interval):\\n           raise TypeError('each element must be a tuple of exactly two integers')\\n   for start, end in intervals:\\n       if start > end:\\n           raise ValueError('start must not be greater than end')\\n   ````\\n\\n4. **Input List Modification**:\\n   ```python\\n   intervals = sorted(intervals)\\n   ````\\n\\n5. **Empty List Handling**:\\n   ```python\\n   if not intervals:\\n       return []\\n   ````\\n\\n**Complete Function**:\\n\\n```python\\nfrom typing import List, Tuple\\n\\n\\ndef merge_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]]:\\n    \\\"\\\"\\\"Merge overlapping or touching intervals in a list of (start, end) tuples.\\n\\n    Parameters:\\n    intervals (List[Tuple[int, int]]): A list of (start, end) tuples of integers.\\n\\n    Returns:\\n    List[Tuple[int, int]]: A new list of merged (start, end) tuples, sorted by start.\\n    \\\"\\\"\\\"\\n    if not isinstance(intervals, list):\\n        raise TypeError('intervals must be a list')\\n    for interval in intervals:\\n        if not isinstance(interval, tuple) or len(interval) != 2 or not all(isinstance(x, int) for x in interval):\\n            raise TypeError('each element must be a tuple of exactly two integers')\\n    for start, end in intervals:\\n        if start > end:\\n            raise ValueError('start must not be greater than end')\\n\\n    intervals = sorted(intervals)\\n    merged = [intervals[0]]\\n    for start, end in intervals[1:]:\\n        last_start, last_end = merged[-1]\\n        if start <= last_end:\\n            merged[-1] = (last_start, max(last_end, end))\\n        else:\\n            merged.append((start, end))\\n    return merged\\n\\n\\ndef run_tests():\\n    assert merge_intervals([(1, 3), (2, 6), (8, 10), (15, 18)]) == [(1, 6), (8, 10), (15, 18)]\\n    assert merge_intervals([(1, 4), (4, 5)]) == [(1, 5)]\\n    assert merge_intervals([]) == []\\n    try:\\n        merge_intervals('not a list')\\n    except TypeError as e:\\n        assert str(e) == 'intervals must be a list'\\n    try:\\n        merge_intervals([(1, 'not an int')])\\n    except TypeError as e:\\n        assert str(e) == 'each element must be a tuple of exactly two integers'\\n    try:\\n        merge_intervals([(1, 2), (3, 1)])\\n    except ValueError as e:\\n        assert str(e) == 'start must not be greater than end'\\",
+      "finish_reason": "length",
+      "prompt_tokens": 380,
+      "completion_tokens": 1200,
+      "total_tokens": 1580,
+      "reported_cost_usd": 0.0012184,
+      "error": null
+    },
+    {
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "role": "critic",
+      "label": "struct_json_schema",
+      "http_status": 200,
+      "latency_s": 2.358,
+      "request_body": {
+        "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a strict, accurate code reviewer. Report only real defects that violate the stated requirements. Do not invent problems."
+          },
+          {
+            "role": "user",
+            "content": "Requirements the code must satisfy:\nImplement a Python function `merge_intervals(intervals)`.\n\nRequirements:\n- `intervals` is a list of (start, end) tuples of integers.\n- Return a NEW list of (start, end) tuples, sorted by start, in which all intervals that overlap or touch are merged. Two intervals touch when next.start == current.end (for example (1, 3) and (3, 5) merge to (1, 5)).\n- An interval fully contained in another must not shrink the merged interval (for example (1, 10) and (2, 3) merge to (1, 10)).\n- An empty list returns an empty list.\n- The input list must not be modified.\n- Raise TypeError if `intervals` is not a list, or if any element is not a tuple of exactly two integers.\n- Raise ValueError if any interval has start > end.\n- Use type hints and a docstring.\n- Include a small set of tests: plain `assert` statements inside a `def run_tests():` function, called under `if __name__ == \"__main__\":`.\n\n\nCode under review:\n```python\ndef merge_intervals(intervals):\n    intervals.sort()\n    merged = [intervals[0]]\n    for start, end in intervals[1:]:\n        last_start, last_end = merged[-1]\n        if start < last_end:\n            merged[-1] = (last_start, end)\n        else:\n            merged.append((start, end))\n    return merged\n```\n\nReview this code against the requirements. List the genuine defects, why each is a defect, and concrete fixes."
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1200,
+        "response_format": {
+          "type": "json_schema",
+          "json_schema": {
+            "name": "code_review",
+            "strict": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "issues_found",
+                    "no_issues"
+                  ]
+                },
+                "identified_issues": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "suggested_changes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "status",
+                "identified_issues",
+                "suggested_changes",
+                "confidence"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "content": "{ \"status\": \"no_issues\" , \"identified_issues\": [] , \"suggested_changes\": [] , \"confidence\": 1.0 }",
+      "finish_reason": "stop",
+      "prompt_tokens": 380,
+      "completion_tokens": 37,
+      "total_tokens": 417,
+      "reported_cost_usd": 0.000288,
+      "error": null
+    }
+  ],
+  "evaluations": {
+    "model_detail": {
+      "Qwen/Qwen2.5-7B-Instruct": {
+        "http_status": 200,
+        "status": "active",
+        "available_on_current_plan": true,
+        "pricing": {
+          "prompt": "0.00000017",
+          "completion": "0.0000002",
+          "image": "0",
+          "request": "0",
+          "input": 0.17,
+          "output": 0.2
+        },
+        "availability": {
+          "tier": "warm",
+          "is_hot_live": true,
+          "is_hot_recent": true,
+          "loading_stage": null,
+          "last_changed_at": "2026-10-30T17:51:05.586Z"
+        },
+        "context_length": 32768
+      },
+      "Qwen/Qwen2.5-Coder-7B-Instruct": {
+        "http_status": 200,
+        "status": "active",
+        "available_on_current_plan": true,
+        "pricing": {
+          "prompt": "0.00000068",
+          "completion": "0.0000008",
+          "image": "0",
+          "request": "0",
+          "input": 0.68,
+          "output": 0.8
+        },
+        "availability": {
+          "tier": "warm",
+          "is_hot_live": false,
+          "is_hot_recent": false,
+          "loading_stage": null,
+          "last_changed_at": "2026-10-30T17:51:05.586Z"
+        },
+        "context_length": 32768
+      }
+    },
+    "generator_initial": {
+      "Qwen/Qwen2.5-7B-Instruct": {
+        "code_extracted": true,
+        "hidden_passed": 12,
+        "hidden_total": 13,
+        "failed_tests": [
+          "input_not_mutated"
+        ],
+        "syntax_ok": true,
+        "has_docstring": true,
+        "has_type_hints": true,
+        "own_tests_in_block": true,
+        "own_tests_exit": 0,
+        "own_tests_stderr_tail": "",
+        "load_error": null
+      },
+      "Qwen/Qwen2.5-Coder-7B-Instruct": {
+        "code_extracted": true,
+        "hidden_passed": 12,
+        "hidden_total": 13,
+        "failed_tests": [
+          "unsorted_input"
+        ],
+        "syntax_ok": true,
+        "has_docstring": true,
+        "has_type_hints": true,
+        "own_tests_in_block": true,
+        "own_tests_exit": 1,
+        "own_tests_stderr_tail": "AssertionError",
+        "load_error": null
+      }
+    },
+    "critic_flawed": {
+      "Qwen/Qwen2.5-7B-Instruct": {
+        "strict_json": true,
+        "lenient_json": true,
+        "schema_errors": [],
+        "seeded_keyword_hints": {
+          "D1_mutates_input": true,
+          "D2_empty_crashes": false,
+          "D3_touching_not_merged": false,
+          "D4_contained_shrinks": false,
+          "D5_no_validation": true
+        }
+      },
+      "Qwen/Qwen2.5-Coder-7B-Instruct": {
+        "strict_json": false,
+        "lenient_json": true,
+        "schema_errors": [],
+        "seeded_keyword_hints": {
+          "D1_mutates_input": false,
+          "D2_empty_crashes": false,
+          "D3_touching_not_merged": false,
+          "D4_contained_shrinks": false,
+          "D5_no_validation": true
+        }
+      }
+    },
+    "pipelines": [
+      {
+        "generator": "Qwen/Qwen2.5-7B-Instruct",
+        "critic": "Qwen/Qwen2.5-7B-Instruct",
+        "before_hidden_passed": 12,
+        "before_failed": [
+          "input_not_mutated"
+        ],
+        "after_hidden_passed": 12,
+        "after_failed": [
+          "input_not_mutated"
+        ],
+        "critic_strict_json": true,
+        "critic_schema_errors": [],
+        "critic_status": "no_issues",
+        "after_eval": {
+          "code_extracted": true,
+          "hidden_passed": 12,
+          "hidden_total": 13,
+          "failed_tests": [
+            "input_not_mutated"
+          ],
+          "syntax_ok": true,
+          "has_docstring": true,
+          "has_type_hints": true,
+          "own_tests_in_block": true,
+          "own_tests_exit": 0,
+          "own_tests_stderr_tail": "",
+          "load_error": null
+        }
+      },
+      {
+        "generator": "Qwen/Qwen2.5-7B-Instruct",
+        "critic": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "before_hidden_passed": 12,
+        "before_failed": [
+          "input_not_mutated"
+        ],
+        "after_hidden_passed": 12,
+        "after_failed": [
+          "input_not_mutated"
+        ],
+        "critic_strict_json": false,
+        "critic_schema_errors": [],
+        "critic_status": "no_issues",
+        "after_eval": {
+          "code_extracted": true,
+          "hidden_passed": 12,
+          "hidden_total": 13,
+          "failed_tests": [
+            "input_not_mutated"
+          ],
+          "syntax_ok": true,
+          "has_docstring": true,
+          "has_type_hints": true,
+          "own_tests_in_block": true,
+          "own_tests_exit": 0,
+          "own_tests_stderr_tail": "",
+          "load_error": null
+        }
+      },
+      {
+        "generator": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "critic": "Qwen/Qwen2.5-7B-Instruct",
+        "before_hidden_passed": 12,
+        "before_failed": [
+          "unsorted_input"
+        ],
+        "after_hidden_passed": 12,
+        "after_failed": [
+          "unsorted_input"
+        ],
+        "critic_strict_json": true,
+        "critic_schema_errors": [],
+        "critic_status": "no_issues",
+        "after_eval": {
+          "code_extracted": true,
+          "hidden_passed": 12,
+          "hidden_total": 13,
+          "failed_tests": [
+            "unsorted_input"
+          ],
+          "syntax_ok": true,
+          "has_docstring": true,
+          "has_type_hints": true,
+          "own_tests_in_block": true,
+          "own_tests_exit": 1,
+          "own_tests_stderr_tail": "AssertionError",
+          "load_error": null
+        }
+      },
+      {
+        "generator": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "critic": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "before_hidden_passed": 12,
+        "before_failed": [
+          "unsorted_input"
+        ],
+        "after_hidden_passed": 12,
+        "after_failed": [
+          "unsorted_input"
+        ],
+        "critic_strict_json": false,
+        "critic_schema_errors": [],
+        "critic_status": "no_issues",
+        "after_eval": {
+          "code_extracted": true,
+          "hidden_passed": 12,
+          "hidden_total": 13,
+          "failed_tests": [
+            "unsorted_input"
+          ],
+          "syntax_ok": true,
+          "has_docstring": true,
+          "has_type_hints": true,
+          "own_tests_in_block": true,
+          "own_tests_exit": 1,
+          "own_tests_stderr_tail": "AssertionError",
+          "load_error": null
+        }
+      }
+    ],
+    "structured": [
+      {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "mode": "prose_prompt+json_object",
+        "http_status": 200,
+        "error": null,
+        "strict_json": true,
+        "lenient_json": true,
+        "schema_errors": [
+          "missing keys ['confidence', 'identified_issues', 'status', 'suggested_changes']",
+          "extra keys ['defects']",
+          "status not in enum",
+          "identified_issues must be a list of non-empty strings",
+          "suggested_changes must be a list of non-empty strings",
+          "confidence must be a number in [0,1]"
+        ]
+      },
+      {
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "mode": "prose_prompt+json_schema",
+        "http_status": 200,
+        "error": null,
+        "strict_json": true,
+        "lenient_json": true,
+        "schema_errors": []
+      },
+      {
+        "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "mode": "prose_prompt+json_object",
+        "http_status": 200,
+        "error": null,
+        "strict_json": false,
+        "lenient_json": false,
+        "schema_errors": null
+      },
+      {
+        "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "mode": "prose_prompt+json_schema",
+        "http_status": 200,
+        "error": null,
+        "strict_json": true,
+        "lenient_json": true,
+        "schema_errors": []
+      }
+    ]
+  }
+}
